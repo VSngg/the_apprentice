@@ -70,3 +70,7 @@ compile_commands.json
 # Android
 *apk*
 android.*
+
+# Assets
+src/resources/*
+!src/resources/atlas.png
