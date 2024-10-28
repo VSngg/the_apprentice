@@ -1,0 +1,24 @@
+{
+	"folders":
+	[
+		{
+			"path": ".",
+		},
+		{
+			"path": "C:\\raylib\\raylib\\src",
+		},
+		{
+			"path": "C:\\raylib\\raylib\\examples",
+		}
+	],
+	"settings":
+	{
+		"LSP":
+		{
+			"clangd":
+			{
+				"enabled": false
+			}
+		}
+	},
+}

@@ -22,6 +22,8 @@
 #include <stdlib.h>                         // Required for: 
 #include <string.h>                         // Required for: 
 
+#include "core.h"
+
 //----------------------------------------------------------------------------------
 // Defines and Macros
 //----------------------------------------------------------------------------------
@@ -46,15 +48,25 @@ typedef enum {
 
 // TODO: Define your custom data types here
 
+typedef Vector2 Vec2;
+typedef Rectangle Rect;
+
+typedef struct Player {
+    Vec2 pos;
+} Player;
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
-static const int screenWidth = 800;
-static const int screenHeight = 450;
+static const I32 screenWidth = 800;
+static const I32 screenHeight = 450;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 // TODO: Define global variables here, recommended to make them static
+
+static Texture atlas;
+bool show_atlas = true;
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
@@ -72,9 +84,12 @@ int main(void)
 
     // Initialization
     //--------------------------------------------------------------------------------------
-    InitWindow(screenWidth, screenHeight, "raylib gamejam template");
+    InitWindow(screenWidth, screenHeight, "The Apprentice");
     
     // TODO: Load resources / Initialize variables at this point
+    Image atlas_image = LoadImage("src/resources/atlas.png");
+    atlas = LoadTextureFromImage(atlas_image); 
+    UnloadImage(atlas_image);
     
     // Render texture to draw full screen, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
@@ -97,6 +112,7 @@ int main(void)
     // De-Initialization
     //--------------------------------------------------------------------------------------
     UnloadRenderTexture(target);
+    UnloadTexture(atlas);
     
     // TODO: Unload all loaded resources at this point
 
@@ -117,6 +133,11 @@ void UpdateDrawFrame(void)
     // TODO: Update variables / Implement example logic at this point
     //----------------------------------------------------------------------------------
 
+    if (IsKeyPressed(KEY_TAB)) {
+        TraceLog(LOG_INFO, "Showing atlas");
+        show_atlas = !show_atlas;
+    }
+
     // Draw
     //----------------------------------------------------------------------------------
     // Render game screen to a texture, 
@@ -127,7 +148,6 @@ void UpdateDrawFrame(void)
         // TODO: Draw your game screen here
         DrawText("Welcome to raylib NEXT gamejam!", 150, 140, 30, BLACK);
         DrawRectangleLinesEx((Rectangle){ 0, 0, screenWidth, screenHeight }, 16, BLACK);
-        
     EndTextureMode();
     
     // Render to screen (main framebuffer)
@@ -135,9 +155,15 @@ void UpdateDrawFrame(void)
         ClearBackground(RAYWHITE);
         
         // Draw render texture to screen, scaled if required
-        DrawTexturePro(target.texture, (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height }, (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height }, (Vector2){ 0, 0 }, 0.0f, WHITE);
+        DrawTexturePro(target.texture, 
+            (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height }, 
+            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height }, 
+            (Vector2){ 0, 0 }, 
+            0.0f, 
+            WHITE);
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
+        if (show_atlas) DrawTextureEx(atlas, (Vec2){16, 16}, 0, 3, WHITE);
 
     EndDrawing();
     //----------------------------------------------------------------------------------  

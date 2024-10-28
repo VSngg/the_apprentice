@@ -29,7 +29,7 @@
 PLATFORM              ?= PLATFORM_DESKTOP
 
 # Define project variables
-PROJECT_NAME          ?= raylib_game
+PROJECT_NAME          ?= The_Apprentice
 PROJECT_VERSION       ?= 1.0
 PROJECT_BUILD_PATH    ?= .
 PROJECT_SOURCE_FILES  ?= raylib_game.c
@@ -46,7 +46,7 @@ RAYLIB_LIBTYPE        ?= STATIC
 COMPILER_PATH         ?= C:\raylib\w64devkit\bin
 
 # Build mode for project: DEBUG or RELEASE
-BUILD_MODE            ?= RELEASE
+BUILD_MODE            ?= DEBUG
 
 # PLATFORM_WEB: Default properties
 BUILD_WEB_ASYNCIFY    ?= FALSE
@@ -96,7 +96,7 @@ endif
 ifeq ($(PLATFORM_OS),WINDOWS)
     ifeq ($(PLATFORM),PLATFORM_WEB)
         # Emscripten required variables
-        EMSDK_PATH         ?= C:/emsdk
+        EMSDK_PATH         ?= C:/Users/user/scoop/apps/emscripten/current
         EMSCRIPTEN_PATH    ?= $(EMSDK_PATH)/upstream/emscripten
         CLANG_PATH          = $(EMSDK_PATH)/upstream/bin
         PYTHON_PATH         = $(EMSDK_PATH)/python/3.9.2-1_64bit
@@ -347,7 +347,7 @@ $(PROJECT_NAME): $(OBJS)
 clean:
 ifeq ($(PLATFORM),PLATFORM_DESKTOP)
     ifeq ($(PLATFORM_OS),WINDOWS)
-		del *.o *.exe /s
+		rm *.o *.exe
     endif
     ifeq ($(PLATFORM_OS),LINUX)
 		find . -type f -executable -delete
