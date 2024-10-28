@@ -74,3 +74,4 @@ android.*
 # Assets
 src/resources/*
 !src/resources/atlas.png
+game.sublime-workspace
