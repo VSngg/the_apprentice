@@ -24,38 +24,7 @@
 #include <string.h>                         // Required for: 
 
 #include "core.h"
-
-//----------------------------------------------------------------------------------
-// Defines and Macros
-//----------------------------------------------------------------------------------
-// Simple log system to avoid printf() calls if required
-// NOTE: Avoiding those calls, also avoids const strings memory usage
-#define SUPPORT_LOG_INFO
-#if defined(SUPPORT_LOG_INFO)
-    #define LOG(...) printf(__VA_ARGS__)
-#else
-    #define LOG(...)
-#endif
-
-//----------------------------------------------------------------------------------
-// Types and Structures Definition
-//----------------------------------------------------------------------------------
-typedef enum { 
-    SCREEN_LOGO = 0, 
-    SCREEN_TITLE, 
-    SCREEN_GAMEPLAY, 
-    SCREEN_ENDING
-} GameScreen;
-
-// TODO: Define your custom data types here
-
-typedef Vector2 Vec2;
-typedef Rectangle Rect;
-
-typedef struct Player {
-    Vec2 pos;
-    F32  speed;
-} Player;
+#include "raylib_game.h"
 
 //----------------------------------------------------------------------------------
 // Global Variables Definition
@@ -67,37 +36,9 @@ static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 // TODO: Define global variables here, recommended to make them static
 
-static Color Color_Palette[8] = {
-    {  73,  84,  53, 255 },
-    { 138, 142,  72, 255 },
-    { 222, 191, 137, 255 },
-    { 164, 101,  62, 255 },
-    { 144,  46,  41, 255 },
-    {  36,  23,  27, 255 },
-    {  93,  69,  62, 255 },
-    { 144, 124, 104, 255 },
-};
-
-#define PAL0 Color_Palette[0]
-#define PAL1 Color_Palette[1]
-#define PAL2 Color_Palette[2]
-#define PAL3 Color_Palette[3]
-#define PAL4 Color_Palette[4]
-#define PAL5 Color_Palette[5]
-#define PAL6 Color_Palette[6]
-#define PAL7 Color_Palette[7]
-
-#define TILE_SIZE 64
-
 static Texture atlas;
 bool show_atlas = true;
 Player player = {0};
-
-//----------------------------------------------------------------------------------
-// Module Functions Declaration
-//----------------------------------------------------------------------------------
-static void UpdateDrawFrame(void);      // Update and Draw one frame
-Rect get_atlas(int row, int col);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
