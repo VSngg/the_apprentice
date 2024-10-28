@@ -11,6 +11,24 @@
 			"path": "C:\\raylib\\raylib\\examples",
 		}
 	],
+	"build_systems": [
+        {
+            "name": "Project Build",
+            "cmd": ["${project_path}/build.bat", "build"],
+            "working_dir": "${project_path}",
+            "file_regex": "^(..[^(]*)\\((\\d+),?(\\d+)?\\):\\s*(.*)$",
+            "variants": [
+                {
+                    "name": "Run",
+                    "cmd": ["${project_path}/build.bat", "run"]
+                },
+                {
+                    "name": "Build",
+                    "cmd": ["${project_path}/build.bat", "build"]
+                }
+            ]
+        }
+    ],
 	"settings":
 	{
 		"LSP":

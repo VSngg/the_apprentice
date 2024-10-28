@@ -15,12 +15,19 @@ exit /b 1
 :build
 echo Using MSBuild
 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" projects/VS2022
+if errorlevel 1 (
+    echo Build failed
+    exit /b 1
+)
 goto :eof
 
 :run
 echo Using MSBuild
 "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" projects/VS2022
-
+if errorlevel 1 (
+    echo Build failed
+    exit /b 1
+)
 echo --------------------------------------------------------------
 echo Running Game
 echo --------------------------------------------------------------
