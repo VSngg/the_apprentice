@@ -19,4 +19,6 @@ typedef double F64;
 
 typedef void VoidFunc(void);
 
+#define ARRAY_LEN(arr) (sizeof(arr) / sizeof(arr[0]))
+
 #endif // CORE_H

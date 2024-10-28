@@ -58,12 +58,32 @@ typedef struct Player {
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
-static const I32 screenWidth = 800;
-static const I32 screenHeight = 450;
+static const I32 screenWidth = 1200;
+static const I32 screenHeight = 600;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 // TODO: Define global variables here, recommended to make them static
+
+static Color Color_Palette[8] = {
+    {  73,  84,  53, 255 },
+    { 138, 142,  72, 255 },
+    { 222, 191, 137, 255 },
+    { 164, 101,  62, 255 },
+    { 144,  46,  41, 255 },
+    {  36,  23,  27, 255 },
+    {  93,  69,  62, 255 },
+    { 144, 124, 104, 255 },
+};
+
+#define PAL0 Color_Palette[0]
+#define PAL1 Color_Palette[1]
+#define PAL2 Color_Palette[2]
+#define PAL3 Color_Palette[3]
+#define PAL4 Color_Palette[4]
+#define PAL5 Color_Palette[5]
+#define PAL6 Color_Palette[6]
+#define PAL7 Color_Palette[7]
 
 static Texture atlas;
 bool show_atlas = true;
@@ -138,22 +158,28 @@ void UpdateDrawFrame(void)
         show_atlas = !show_atlas;
     }
 
+    Vec2 input = {0};
+
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
+        input.y += 1;
+    }
+
     // Draw
     //----------------------------------------------------------------------------------
     // Render game screen to a texture, 
     // it could be useful for scaling or further shader postprocessing
     BeginTextureMode(target);
-        ClearBackground(RAYWHITE);
+        ClearBackground(PAL2);
         
         // TODO: Draw your game screen here
-        DrawText("Welcome to raylib NEXT gamejam!", 150, 140, 30, BLACK);
-        DrawRectangleLinesEx((Rectangle){ 0, 0, screenWidth, screenHeight }, 16, BLACK);
+        // DrawText("Welcome to raylib NEXT gamejam!", 150, 140, 30, BLACK);
+        // DrawRectangleLinesEx((Rectangle){ 0, 0, screenWidth, screenHeight }, 16, PAL5);
     EndTextureMode();
     
     // Render to screen (main framebuffer)
     BeginDrawing();
-        ClearBackground(RAYWHITE);
-        
+        ClearBackground(PAL2);
+
         // Draw render texture to screen, scaled if required
         DrawTexturePro(target.texture, 
             (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height }, 
@@ -163,7 +189,17 @@ void UpdateDrawFrame(void)
             WHITE);
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
-        if (show_atlas) DrawTextureEx(atlas, (Vec2){16, 16}, 0, 3, WHITE);
+        if (show_atlas) {
+            DrawTextureEx(atlas, (Vec2){16, 48}, 0, 3, WHITE);
+            for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
+                Vec2 pos = {16.0f + i*32, 16.0f};
+                Vec2 size = {32, 32};
+                DrawRectangleV(pos, size, Color_Palette[i]);
+                Color color = i == 5 ? PAL0 : PAL5;
+
+                DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
+            }
+        }
 
     EndDrawing();
     //----------------------------------------------------------------------------------  
