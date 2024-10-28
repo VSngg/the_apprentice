@@ -12,6 +12,7 @@
 ********************************************************************************************/
 
 #include "raylib.h"
+#include "raymath.h"
 
 #if defined(PLATFORM_WEB)
     #define CUSTOM_MODAL_DIALOGS            // Force custom modal dialogs usage
@@ -53,6 +54,7 @@ typedef Rectangle Rect;
 
 typedef struct Player {
     Vec2 pos;
+    F32  speed;
 } Player;
 
 //----------------------------------------------------------------------------------
@@ -85,13 +87,17 @@ static Color Color_Palette[8] = {
 #define PAL6 Color_Palette[6]
 #define PAL7 Color_Palette[7]
 
+#define TILE_SIZE 64
+
 static Texture atlas;
 bool show_atlas = true;
+Player player = {0};
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
+Rect get_atlas(int row, int col);
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -110,7 +116,10 @@ int main(void)
     Image atlas_image = LoadImage("src/resources/atlas.png");
     atlas = LoadTextureFromImage(atlas_image); 
     UnloadImage(atlas_image);
-    
+
+    player.pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2, screenHeight/2.0f - TILE_SIZE/2};
+    player.speed = 200.0f;
+
     // Render texture to draw full screen, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
     target = LoadRenderTexture(screenWidth, screenHeight);
@@ -153,8 +162,11 @@ void UpdateDrawFrame(void)
     // TODO: Update variables / Implement example logic at this point
     //----------------------------------------------------------------------------------
 
+    F32 dt = GetFrameTime();
+
     if (IsKeyPressed(KEY_TAB)) {
-        TraceLog(LOG_INFO, "Showing atlas");
+        const char* text = show_atlas ? "Hiding atlas" : "Showing atlas";
+        TraceLog(LOG_INFO, text);
         show_atlas = !show_atlas;
     }
 
@@ -163,6 +175,19 @@ void UpdateDrawFrame(void)
     if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
         input.y += 1;
     }
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
+        input.y -= 1;
+    }
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
+        input.x -= 1;
+    }
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
+        input.x += 1;
+    }
+
+    input = Vector2Normalize(input);
+
+    player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
 
     // Draw
     //----------------------------------------------------------------------------------
@@ -174,6 +199,11 @@ void UpdateDrawFrame(void)
         // TODO: Draw your game screen here
         // DrawText("Welcome to raylib NEXT gamejam!", 150, 140, 30, BLACK);
         // DrawRectangleLinesEx((Rectangle){ 0, 0, screenWidth, screenHeight }, 16, PAL5);
+
+        Rect src = get_atlas(0,0);
+        Rect dst = {player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
+        DrawTexturePro(atlas, src, dst, (Vec2){0, 0}, 0, WHITE);
+
     EndTextureMode();
     
     // Render to screen (main framebuffer)
@@ -190,7 +220,7 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
         if (show_atlas) {
-            DrawTextureEx(atlas, (Vec2){16, 48}, 0, 3, WHITE);
+            DrawTextureEx(atlas, (Vec2){16, 48}, 0, 4, WHITE);
             for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
                 Vec2 pos = {16.0f + i*32, 16.0f};
                 Vec2 size = {32, 32};
@@ -203,4 +233,13 @@ void UpdateDrawFrame(void)
 
     EndDrawing();
     //----------------------------------------------------------------------------------  
+}
+
+Rect get_atlas(int col, int row) {
+    return (Rect) {
+        (F32) 0 + col * 16,
+        (F32) 0 + row * 16,
+        16,
+        16,
+    };
 }
