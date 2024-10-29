@@ -47,6 +47,7 @@ static Texture atlas;
 bool show_atlas = true;
 Player player = {0};
 Spell  spell  = {0};
+Enemy  enemy  = {0};
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -78,6 +79,11 @@ int main(void)
         .cooldown_timer = 0.0f,
         .is_on_cooldown = false,
         .mana_cost      = 25.0f,
+    };
+
+    enemy = (Enemy) {
+        .pos = (Vec2){screenWidth/1.5f, screenHeight/1.5f},
+        .speed = 200.0f,
     };
 
     // Render texture to draw full screen, enables screen scaling

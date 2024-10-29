@@ -52,7 +52,10 @@ typedef struct Spell {
     F32 mana_cost;
 } Spell;
 
-
+typedef struct Enemy {
+    Vec2 pos;
+    F32  speed;
+} Enemy;
 
 static Color Color_Palette[8] = {
     {  73,  84,  53, 255 },
