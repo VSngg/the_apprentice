@@ -12,9 +12,14 @@
 ********************************************************************************************/
 
 /*
- *  TODO: 
+ *  TODO:
  *      - [] Render projectiles
+ *          - [] Add projectile to spell struct
+ *          - [] Put projectiles inside dynamic array
+ *
  *      - [] Enemies
+ *          - [] Put enemies inside dynamic array
+ *          - [] Find algorithm to space out enemies
  */
 
 #include "raylib.h"
@@ -160,7 +165,7 @@ void UpdateDrawFrame(void)
     player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){(F32)screenWidth - TILE_SIZE, (F32)screenHeight - TILE_SIZE});
 
     player.current_mana += player.mana_regen * dt;
-    if (player.current_mana >= player.max_mana) player.current_mana = player.max_mana; 
+    if (player.current_mana >= player.max_mana) player.current_mana = player.max_mana;
 
     if (spell.is_on_cooldown) {
         spell.cooldown_timer -= dt;
@@ -180,7 +185,7 @@ void UpdateDrawFrame(void)
         TraceLog(LOG_INFO, "Shooting projectile");
     }
 
-    // TODO: shoot projectile in the direction of enemy. 
+    // TODO: shoot projectile in the direction of enemy.
 
     Vec2 enemy_to_player_dir = Vector2Normalize(Vector2Subtract(player.pos, enemy.pos));
     enemy.pos = Vector2Add(enemy.pos, Vector2Scale(enemy_to_player_dir, enemy.speed*dt));
@@ -233,7 +238,7 @@ void UpdateDrawFrame(void)
                 const char* text = "Ready!";
                 DrawText(text, 16, screenHeight-32, 20, PAL7);
             }
-        
+
         }
 
     EndDrawing();
