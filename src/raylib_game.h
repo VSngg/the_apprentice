@@ -28,12 +28,22 @@ typedef enum {
 typedef Vector2 Vec2;
 typedef Rectangle Rect;
 
+typedef enum {
+    NO_FLIP = 0,
+    FLIP_X,
+    FLIP_Y,
+    FLIP_XY
+} Flip_Texture;
+
 typedef struct Player {
     Vec2 pos;
     F32  speed;
+
     F32  current_mana;
     F32  max_mana;
     F32  mana_regen;
+
+    Flip_Texture flip_texture;
 } Player;
 
 typedef struct Spell {
@@ -42,12 +52,7 @@ typedef struct Spell {
     F32 mana_cost;
 } Spell;
 
-typedef enum {
-    NO_FLIP = 0,
-    FLIP_X,
-    FLIP_Y,
-    FLIP_XY
-} Flip_Texture;
+
 
 static Color Color_Palette[8] = {
     {  73,  84,  53, 255 },
@@ -70,6 +75,7 @@ static Color Color_Palette[8] = {
 #define PAL7 Color_Palette[7]
 
 #define TILE_SIZE 64
+#define TILE_SIZE_ORIGINAL 16
 
 //----------------------------------------------------------------------------------
 // Module Functions Declaration

@@ -141,9 +141,11 @@ void UpdateDrawFrame(void)
     }
     if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
         input.x -= 1;
+        player.flip_texture = FLIP_X;
     }
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
         input.x += 1;
+        player.flip_texture = NO_FLIP;
     }
 
     input = Vector2Normalize(input);
@@ -186,7 +188,7 @@ void UpdateDrawFrame(void)
         // TODO: Draw your game screen here
         Rect src = get_atlas(0,0);
         Rect dst = {player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
-        DrawTexturePro(atlas, src, dst, (Vec2){0, 0}, 0, WHITE);
+        draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
 
     EndTextureMode();
 
@@ -197,7 +199,7 @@ void UpdateDrawFrame(void)
         // Draw render texture to screen, scaled if required
         DrawTexturePro(target.texture,
             (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height },
-            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height },
+            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height  },
             (Vector2){ 0, 0 },
             0.0f,
             WHITE);
@@ -231,16 +233,16 @@ void UpdateDrawFrame(void)
 
 Rect get_atlas(int col, int row) {
     return (Rect) {
-        (F32) 0 + col * 16,
-        (F32) 0 + row * 16,
-        16,
-        16,
+        (F32) 0 + col * TILE_SIZE_ORIGINAL,
+        (F32) 0 + row * TILE_SIZE_ORIGINAL,
+        TILE_SIZE_ORIGINAL,
+        TILE_SIZE_ORIGINAL,
     };
 }
 
 void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint)
 {
-    Rectangle dst = { position.x, position.y, fabsf(src.width), fabsf(src.height) };
+    Rectangle dst = { position.x, position.y, fabsf(src.width)*4, fabsf(src.height)*4 };
     Vector2 origin = { 0.0f, 0.0f };
 
     switch(flip){
