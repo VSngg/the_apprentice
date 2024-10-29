@@ -83,7 +83,7 @@ int main(void)
 
     enemy = (Enemy) {
         .pos = (Vec2){screenWidth/1.5f, screenHeight/1.5f},
-        .speed = 200.0f,
+        .speed = 100.0f,
     };
 
     // Render texture to draw full screen, enables screen scaling
@@ -182,7 +182,8 @@ void UpdateDrawFrame(void)
 
     // TODO: shoot projectile in the direction of enemy. 
 
-
+    Vec2 enemy_to_player_dir = Vector2Normalize(Vector2Subtract(player.pos, enemy.pos));
+    enemy.pos = Vector2Add(enemy.pos, Vector2Scale(enemy_to_player_dir, enemy.speed*dt));
 
     // Draw
     //----------------------------------------------------------------------------------
@@ -193,8 +194,10 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw your game screen here
         Rect src = get_atlas(0,0);
-        Rect dst = {player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
         draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
+
+        src = get_atlas(0,4);
+        draw_sprite(atlas, src, enemy.pos, NO_FLIP, WHITE);
 
     EndTextureMode();
 
