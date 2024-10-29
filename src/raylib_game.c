@@ -11,6 +11,12 @@
 *
 ********************************************************************************************/
 
+/*
+ *  TODO: 
+ *      - [] Render projectiles
+ *      - [] Enemies
+ */
+
 #include "raylib.h"
 #include "raymath.h"
 
@@ -148,11 +154,6 @@ void UpdateDrawFrame(void)
     player.current_mana += player.mana_regen * dt;
     if (player.current_mana >= player.max_mana) player.current_mana = player.max_mana; 
 
-    if (player.current_mana >= 25.0f) {
-        shoot_projectile();
-        player.current_mana -= 15.0f;
-    }
-
     if (spell.is_on_cooldown) {
         spell.cooldown_timer -= dt;
 
@@ -162,8 +163,13 @@ void UpdateDrawFrame(void)
         }
     }
 
-    if (!spell.is_on_cooldown && player.current_mana >= spell->mana_cost) {
-        shoot_projectile();
+    if (!spell.is_on_cooldown && player.current_mana >= spell.mana_cost) {
+        player.current_mana -= spell.mana_cost;
+
+        spell.is_on_cooldown = true;
+        spell.cooldown_timer = 5.0;
+
+        TraceLog(LOG_INFO, "Shooting projectile");
     }
 
     // TODO: shoot projectile in the direction of enemy. 
@@ -178,9 +184,6 @@ void UpdateDrawFrame(void)
         ClearBackground(PAL2);
 
         // TODO: Draw your game screen here
-        // DrawText("Welcome to raylib NEXT gamejam!", 150, 140, 30, BLACK);
-        // DrawRectangleLinesEx((Rectangle){ 0, 0, screenWidth, screenHeight }, 16, PAL5);
-
         Rect src = get_atlas(0,0);
         Rect dst = {player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
         DrawTexturePro(atlas, src, dst, (Vec2){0, 0}, 0, WHITE);
@@ -210,7 +213,16 @@ void UpdateDrawFrame(void)
 
                 DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
             }
-            DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-36, 24, PAL4);
+            DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-64, 20, PAL4);
+
+            if (spell.is_on_cooldown) {
+                const char* text = TextFormat("Cooldown: %.1f", spell.cooldown_timer);
+                DrawText(text, 16, screenHeight-32, 20, PAL4);
+            } else {
+                const char* text = "Ready!";
+                DrawText(text, 16, screenHeight-32, 20, PAL7);
+            }
+        
         }
 
     EndDrawing();
@@ -245,13 +257,4 @@ void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Textur
             break;
     }
     DrawTexturePro(texture, src, dst, origin, 0.0f, tint);
-}
-
-void shoot_projectile(Player* player, Spell* spell) {
-    player->current_mana -= spell->mana_cost;
-
-    spell->is_on_cooldown = true;
-    spell->cooldown_timer = 25.0;
-
-    TraceLog(LOG_INFO, "Shooting projectile");
 }

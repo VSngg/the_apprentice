@@ -77,6 +77,5 @@ static Color Color_Palette[8] = {
 static void UpdateDrawFrame(void);      // Update and Draw one frame
 Rect get_atlas(int row, int col);
 void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint);
-void shoot_projectile();
 
 #endif // RAYLIB_GAME_H
