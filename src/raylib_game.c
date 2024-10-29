@@ -20,8 +20,8 @@
 #endif
 
 #include <stdio.h>                          // Required for: printf()
-#include <stdlib.h>                         // Required for: 
-#include <string.h>                         // Required for: 
+#include <stdlib.h>                         // Required for:
+#include <string.h>                         // Required for:
 
 #include "core.h"
 #include "raylib_game.h"
@@ -29,16 +29,18 @@
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
-static const I32 screenWidth = 1200;
-static const I32 screenHeight = 600;
+static const I32 screenWidth = 1024;
+static const I32 screenHeight = 768;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 // TODO: Define global variables here, recommended to make them static
 
+int frames_counter = 0;
 static Texture atlas;
 bool show_atlas = true;
 Player player = {0};
+Spell  spell  = {0};
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -52,14 +54,25 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "The Apprentice");
-    
+
     // TODO: Load resources / Initialize variables at this point
     Image atlas_image = LoadImage("src/resources/atlas.png");
-    atlas = LoadTextureFromImage(atlas_image); 
+    atlas = LoadTextureFromImage(atlas_image);
     UnloadImage(atlas_image);
 
-    player.pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2, screenHeight/2.0f - TILE_SIZE/2};
-    player.speed = 200.0f;
+    player = (Player){
+        .pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2, screenHeight/2.0f - TILE_SIZE/2},
+        .speed = 200.0f,
+        .current_mana = 0.0f,
+        .max_mana = 100.0f,
+        .mana_regen = 5.0f,
+    };
+
+    spell = (Spell) {
+        .cooldown_timer = 0.0f,
+        .is_on_cooldown = false,
+        .mana_cost      = 25.0f,
+    };
 
     // Render texture to draw full screen, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
@@ -83,7 +96,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
     UnloadRenderTexture(target);
     UnloadTexture(atlas);
-    
+
     // TODO: Unload all loaded resources at this point
 
     CloseWindow();        // Close window and OpenGL context
@@ -104,6 +117,7 @@ void UpdateDrawFrame(void)
     //----------------------------------------------------------------------------------
 
     F32 dt = GetFrameTime();
+    frames_counter++;
 
     if (IsKeyPressed(KEY_TAB)) {
         const char* text = show_atlas ? "Hiding atlas" : "Showing atlas";
@@ -129,14 +143,40 @@ void UpdateDrawFrame(void)
     input = Vector2Normalize(input);
 
     player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
+    player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){(F32)screenWidth - TILE_SIZE, (F32)screenHeight - TILE_SIZE});
+
+    player.current_mana += player.mana_regen * dt;
+    if (player.current_mana >= player.max_mana) player.current_mana = player.max_mana; 
+
+    if (player.current_mana >= 25.0f) {
+        shoot_projectile();
+        player.current_mana -= 15.0f;
+    }
+
+    if (spell.is_on_cooldown) {
+        spell.cooldown_timer -= dt;
+
+        if (spell.cooldown_timer <= 0) {
+            spell.is_on_cooldown = false;
+            spell.cooldown_timer = 0.0f;
+        }
+    }
+
+    if (!spell.is_on_cooldown && player.current_mana >= spell->mana_cost) {
+        shoot_projectile();
+    }
+
+    // TODO: shoot projectile in the direction of enemy. 
+
+
 
     // Draw
     //----------------------------------------------------------------------------------
-    // Render game screen to a texture, 
+    // Render game screen to a texture,
     // it could be useful for scaling or further shader postprocessing
     BeginTextureMode(target);
         ClearBackground(PAL2);
-        
+
         // TODO: Draw your game screen here
         // DrawText("Welcome to raylib NEXT gamejam!", 150, 140, 30, BLACK);
         // DrawRectangleLinesEx((Rectangle){ 0, 0, screenWidth, screenHeight }, 16, PAL5);
@@ -146,17 +186,17 @@ void UpdateDrawFrame(void)
         DrawTexturePro(atlas, src, dst, (Vec2){0, 0}, 0, WHITE);
 
     EndTextureMode();
-    
+
     // Render to screen (main framebuffer)
     BeginDrawing();
         ClearBackground(PAL2);
 
         // Draw render texture to screen, scaled if required
-        DrawTexturePro(target.texture, 
-            (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height }, 
-            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height }, 
-            (Vector2){ 0, 0 }, 
-            0.0f, 
+        DrawTexturePro(target.texture,
+            (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height },
+            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height },
+            (Vector2){ 0, 0 },
+            0.0f,
             WHITE);
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
@@ -170,10 +210,11 @@ void UpdateDrawFrame(void)
 
                 DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
             }
+            DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-36, 24, PAL4);
         }
 
     EndDrawing();
-    //----------------------------------------------------------------------------------  
+    //----------------------------------------------------------------------------------
 }
 
 Rect get_atlas(int col, int row) {
@@ -183,4 +224,34 @@ Rect get_atlas(int col, int row) {
         16,
         16,
     };
+}
+
+void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint)
+{
+    Rectangle dst = { position.x, position.y, fabsf(src.width), fabsf(src.height) };
+    Vector2 origin = { 0.0f, 0.0f };
+
+    switch(flip){
+        case NO_FLIP: break;
+        case FLIP_X:
+            src.width *= -1;
+            break;
+        case FLIP_Y:
+            src.height *= -1;
+            break;
+        case FLIP_XY:
+            src.width *= -1;
+            src.height *= -1;
+            break;
+    }
+    DrawTexturePro(texture, src, dst, origin, 0.0f, tint);
+}
+
+void shoot_projectile(Player* player, Spell* spell) {
+    player->current_mana -= spell->mana_cost;
+
+    spell->is_on_cooldown = true;
+    spell->cooldown_timer = 25.0;
+
+    TraceLog(LOG_INFO, "Shooting projectile");
 }

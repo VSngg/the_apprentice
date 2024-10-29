@@ -31,7 +31,23 @@ typedef Rectangle Rect;
 typedef struct Player {
     Vec2 pos;
     F32  speed;
+    F32  current_mana;
+    F32  max_mana;
+    F32  mana_regen;
 } Player;
+
+typedef struct Spell {
+    F32 cooldown_timer;
+    B32 is_on_cooldown;
+    F32 mana_cost;
+} Spell;
+
+typedef enum {
+    NO_FLIP = 0,
+    FLIP_X,
+    FLIP_Y,
+    FLIP_XY
+} Flip_Texture;
 
 static Color Color_Palette[8] = {
     {  73,  84,  53, 255 },
@@ -60,6 +76,7 @@ static Color Color_Palette[8] = {
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
 Rect get_atlas(int row, int col);
-
+void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint);
+void shoot_projectile();
 
 #endif // RAYLIB_GAME_H
