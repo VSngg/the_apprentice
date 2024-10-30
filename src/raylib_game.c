@@ -20,6 +20,8 @@
  *      - [] Enemies
  *          - [] Put enemies inside dynamic array
  *          - [] Find algorithm to space out enemies
+ *      - [] Web build
+ *          - [] modify build script to use emcc and compile locally
  */
 
 #include "raylib.h"
@@ -50,9 +52,11 @@ static RenderTexture2D target = { 0 };  // Render texture to render our game
 int frames_counter = 0;
 static Texture atlas;
 bool show_atlas = true;
+
 Player player = {0};
 Spell  spell  = {0};
 Enemy  enemy  = {0};
+Enemy  enemies[MAX_ENEMIES] = {0};
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -187,8 +191,13 @@ void UpdateDrawFrame(void)
 
     // TODO: shoot projectile in the direction of enemy.
 
-    Vec2 enemy_to_player_dir = Vector2Normalize(Vector2Subtract(player.pos, enemy.pos));
-    enemy.pos = Vector2Add(enemy.pos, Vector2Scale(enemy_to_player_dir, enemy.speed*dt));
+    Vec2 enemy_to_player_dist_vec = Vector2Subtract(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy.pos));
+    Vec2 enemy_to_player_dir      = Vector2Normalize(enemy_to_player_dist_vec);
+    F32  enemy_to_player_dist     = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy.pos));
+    // TODO: add enemy struct field for distance to player comparison
+    if (enemy_to_player_dist > TILE_SIZE) {
+        enemy.pos = Vector2Add(enemy.pos, Vector2Scale(enemy_to_player_dir, enemy.speed*dt));
+    }
 
     // Draw
     //----------------------------------------------------------------------------------
@@ -203,6 +212,8 @@ void UpdateDrawFrame(void)
 
         src = get_atlas(0,4);
         draw_sprite(atlas, src, enemy.pos, NO_FLIP, WHITE);
+
+        if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy.pos), PAL4);
 
     EndTextureMode();
 

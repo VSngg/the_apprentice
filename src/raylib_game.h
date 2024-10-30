@@ -80,6 +80,9 @@ static Color Color_Palette[8] = {
 #define TILE_SIZE 64
 #define TILE_SIZE_ORIGINAL 16
 
+#define SPRITE_CENTER(pos) ((Vec2){(pos).x + TILE_SIZE/2, (pos).y + TILE_SIZE/2})
+
+#define MAX_ENEMIES 512
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
