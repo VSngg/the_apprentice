@@ -55,6 +55,8 @@ typedef struct Spell {
 typedef struct Enemy {
     Vec2 pos;
     F32  speed;
+
+    Flip_Texture flip_texture;
 } Enemy;
 
 static Color Color_Palette[8] = {

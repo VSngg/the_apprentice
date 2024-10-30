@@ -211,7 +211,7 @@ void UpdateDrawFrame(void)
 
             if (distance < TILE_SIZE) {
                 Vec2 diff = Vector2Normalize(Vector2Subtract(enemies[i].pos, enemies[j].pos));
-                separation = Vector2Add(separation, diff);
+                separation = Vector2Add(separation, Vector2Scale(diff, TILE_SIZE/1.5/distance));
                 neighbours++;
             }
         }
@@ -236,6 +236,11 @@ void UpdateDrawFrame(void)
             enemy->pos = Vector2Add(enemy->pos, Vector2Scale(enemy_to_player_vel, enemy->speed*dt));
         }
 
+        if (enemy_to_player_dist_vec.x < 0) {
+            enemy->flip_texture = FLIP_X;
+        } else {
+            enemy->flip_texture = NO_FLIP;
+        }
     }
 
 
@@ -252,7 +257,7 @@ void UpdateDrawFrame(void)
 
         for (int i=0; i < arrlen(enemies); i++) {
             src = get_atlas(i%4,4);
-            draw_sprite(atlas, src, enemies[i].pos, NO_FLIP, WHITE);
+            draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
             if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
         }
 
