@@ -38,6 +38,7 @@
 
 #include "core.h"
 #include "raylib_game.h"
+#include "atlas.h"
 
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
@@ -75,9 +76,17 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "The Apprentice");
 
     // TODO: Load resources / Initialize variables at this point
-    Image atlas_image = LoadImage("src/resources/atlas.png");
+    // Image atlas_image = LoadImage("src/resources/atlas.png");
+    // Image atlas_image = LoadImageFromMemory(".png", ATLAS_DATA, sizeof(ATLAS_DATA));
+    Image atlas_image = {0};
+
+    atlas_image.format = ATLAS_FORMAT;
+    atlas_image.width = ATLAS_WIDTH;
+    atlas_image.height = ATLAS_HEIGHT;
+    atlas_image.mipmaps = 1;
+    atlas_image.data = ATLAS_DATA;
+
     atlas = LoadTextureFromImage(atlas_image);
-    UnloadImage(atlas_image);
 
     player = (Player){
         .pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2, screenHeight/2.0f - TILE_SIZE/2},

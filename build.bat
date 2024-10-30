@@ -24,8 +24,21 @@ if errorlevel 1 (
 goto :eof
 
 :build
-echo Building game using cl.exe
-cl src/raylib_game.c /I"../raylib-5.0_win64_msvc16/include/" /MD /link /MACHINE:X64 /OUT:"The_Apprentice.exe" "../raylib-5.0_win64_msvc16/lib/raylib.lib" opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
+echo ----------------------------
+echo Generating atlas header file
+echo ----------------------------
+
+cl src\gen_atlas.c /Fe"src/gen_atlas.exe" -I ..\raylib-5.0_win64_msvc16\include\ /link ..\raylib-5.0_win64_msvc16\lib\raylib.lib opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
+if errorlevel 1 (
+    echo atlas generation failed
+    exit /b 1
+)
+
+echo ---------------------------------
+echo Building and running using cl.exe
+echo ---------------------------------
+
+cl src/raylib_game.c /I"../raylib-5.0_win64_msvc16/include/" /MD /DEBUG /Zi /Od /link /DEBUG /MACHINE:X64 /OUT:"The_Apprentice.exe" "../raylib-5.0_win64_msvc16/lib/raylib.lib" opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
 if errorlevel 1 (
     echo Build failed
     exit /b 1
@@ -33,7 +46,21 @@ if errorlevel 1 (
 goto :eof
 
 :run
+echo ----------------------------
+echo Generating atlas header file
+echo ----------------------------
+
+cl src\gen_atlas.c /Fe"gen_atlas.exe" -I ..\raylib-5.0_win64_msvc16\include\ /link ..\raylib-5.0_win64_msvc16\lib\raylib.lib opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
+gen_atlas.exe
+if errorlevel 1 (
+    echo atlas generation failed
+    exit /b 1
+)
+
+echo ---------------------------------
 echo Building and running using cl.exe
+echo ---------------------------------
+
 cl src/raylib_game.c /I"../raylib-5.0_win64_msvc16/include/" /MD /DEBUG /Zi /Od /link /DEBUG /MACHINE:X64 /OUT:"The_Apprentice.exe" "../raylib-5.0_win64_msvc16/lib/raylib.lib" opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
 if errorlevel 1 (
     echo Build failed
