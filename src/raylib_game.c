@@ -18,8 +18,8 @@
  *          - [] Put projectiles inside dynamic array
  *
  *      - [] Enemies
- *          - [] Put enemies inside dynamic array
- *          - [] Find algorithm to space out enemies
+ *          - [x] Put enemies inside dynamic array
+ *          - [x] Find algorithm to space out enemies
  *      - [] Web build
  *          - [] modify build script to use emcc and compile locally
  */
@@ -94,8 +94,12 @@ int main(void)
     };
 
     for (int i = 0; i < 20; i++) {
+        F32 angle = (2.0f * PI * i) / 20;
+        F32 radius = 700.0f;
         Enemy enemy = {
-            .pos = (Vec2){(F32)screenWidth/i+1, (F32)screenHeight/i+1},
+            .pos = (Vec2){
+                (F32)screenWidth/2  + radius * cosf(angle),
+                (F32)screenHeight/2 + radius * sinf(angle)},
             .speed = 100.0f,
         };
         arrput(enemies, enemy);
@@ -296,6 +300,8 @@ void UpdateDrawFrame(void)
                 const char* text = "Ready!";
                 DrawText(text, 16, screenHeight-32, 20, PAL7);
             }
+
+            DrawFPS(10,10);
 
         }
 
