@@ -39,6 +39,9 @@
 #include "core.h"
 #include "raylib_game.h"
 
+#define STB_DS_IMPLEMENTATION
+#include "stb_ds.h"
+
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
@@ -55,8 +58,8 @@ bool show_atlas = true;
 
 Player player = {0};
 Spell  spell  = {0};
-Enemy  enemy  = {0};
-Enemy  enemies[MAX_ENEMIES] = {0};
+
+Enemy *enemies = NULL;
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -90,10 +93,13 @@ int main(void)
         .mana_cost      = 25.0f,
     };
 
-    enemy = (Enemy) {
-        .pos = (Vec2){screenWidth/1.5f, screenHeight/1.5f},
-        .speed = 100.0f,
-    };
+    for (int i = 0; i < 20; i++) {
+        Enemy enemy = {
+            .pos = (Vec2){(F32)screenWidth/i+1, (F32)screenHeight/i+1},
+            .speed = 100.0f,
+        };
+        arrput(enemies, enemy);
+    }
 
     // Render texture to draw full screen, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
@@ -117,6 +123,8 @@ int main(void)
     //--------------------------------------------------------------------------------------
     UnloadRenderTexture(target);
     UnloadTexture(atlas);
+
+    arrfree(enemies);
 
     // TODO: Unload all loaded resources at this point
 
@@ -242,10 +250,12 @@ void UpdateDrawFrame(void)
         Rect src = get_atlas(0,0);
         draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
 
-        src = get_atlas(0,4);
-        draw_sprite(atlas, src, enemy.pos, NO_FLIP, WHITE);
+        for (int i=0; i < arrlen(enemies); i++) {
+            src = get_atlas(i%4,4);
+            draw_sprite(atlas, src, enemies[i].pos, NO_FLIP, WHITE);
+            if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
+        }
 
-        if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy.pos), PAL4);
 
     EndTextureMode();
 
