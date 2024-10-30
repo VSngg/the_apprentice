@@ -191,13 +191,45 @@ void UpdateDrawFrame(void)
 
     // TODO: shoot projectile in the direction of enemy.
 
-    Vec2 enemy_to_player_dist_vec = Vector2Subtract(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy.pos));
-    Vec2 enemy_to_player_dir      = Vector2Normalize(enemy_to_player_dist_vec);
-    F32  enemy_to_player_dist     = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy.pos));
-    // TODO: add enemy struct field for distance to player comparison
-    if (enemy_to_player_dist > TILE_SIZE) {
-        enemy.pos = Vector2Add(enemy.pos, Vector2Scale(enemy_to_player_dir, enemy.speed*dt));
+    for (int i = 0; i < arrlen(enemies); i++) {
+        Vec2 separation = {0, 0};
+        int  neighbours = 0;
+
+        // calculate separation force
+        for (int j = 0; j < arrlen(enemies); j++) {
+            if (i==j) continue;
+
+            F32 distance = Vector2Distance(enemies[i].pos, enemies[j].pos);
+
+            if (distance < TILE_SIZE) {
+                Vec2 diff = Vector2Normalize(Vector2Subtract(enemies[i].pos, enemies[j].pos));
+                separation = Vector2Add(separation, diff);
+                neighbours++;
+            }
+        }
+
+        // average and limit separation force
+        if (neighbours > 0) {
+            separation = Vector2Scale(separation, 1.0f/neighbours);
+            F32 max_force = enemies[i].speed * 0.5f;
+            F32 magnitude = sqrt(separation.x * separation.x + separation.y * separation.y);
+
+            if (magnitude > max_force) {
+                separation = Vector2Scale(Vector2Normalize(separation), max_force);
+            }
+        }
+
+        Enemy* enemy = &enemies[i];
+        Vec2 enemy_to_player_dist_vec = Vector2Subtract(player.pos, enemy->pos);
+        Vec2 enemy_to_player_vel      = Vector2Add(Vector2Normalize(enemy_to_player_dist_vec), separation);
+        F32  enemy_to_player_dist     = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy->pos));
+        // TODO: add enemy struct field for distance to player comparison
+        if (enemy_to_player_dist > TILE_SIZE) {
+            enemy->pos = Vector2Add(enemy->pos, Vector2Scale(enemy_to_player_vel, enemy->speed*dt));
+        }
+
     }
+
 
     // Draw
     //----------------------------------------------------------------------------------
