@@ -232,12 +232,10 @@ void UpdateDrawFrame(void)
         // average and limit separation force
         if (neighbours > 0) {
             separation = Vector2Scale(separation, 1.0f/neighbours);
+            F32 min_force = enemies[i].speed * 0.0005f;
             F32 max_force = enemies[i].speed * 0.5f;
-            F32 magnitude = sqrt(separation.x * separation.x + separation.y * separation.y);
 
-            if (magnitude > max_force) {
-                separation = Vector2Scale(Vector2Normalize(separation), max_force);
-            }
+            separation = Vector2ClampValue(separation, min_force, max_force);
         }
 
         Enemy* enemy = &enemies[i];
