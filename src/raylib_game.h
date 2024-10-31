@@ -47,12 +47,15 @@ typedef struct Player {
     F32  speed;
 
     F32  health;
+    F32  max_health;
     bool is_invincible;
     F32  invincibility_timer;
 
     F32  current_mana;
     F32  max_mana;
     F32  mana_regen;
+
+    Vec2 ray_anchor;
 
     Current_Spell current_spell;
 
@@ -71,6 +74,8 @@ typedef struct Apprentice {
 
     bool following_player;
 
+    Vec2 ray_anchor;
+
     Flip_Texture flip_texture;
 
 } Apprentice;
@@ -78,6 +83,9 @@ typedef struct Apprentice {
 typedef struct Enemy {
     Vec2 pos;
     F32  speed;
+
+    F32 health;
+    F32 max_health;
 
     Flip_Texture flip_texture;
 } Enemy;

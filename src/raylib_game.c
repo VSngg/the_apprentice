@@ -92,6 +92,7 @@ int main(void)
         .speed = 200.0f,
 
         .health = 100.0f,
+        .max_health = 100.0f,
         .is_invincible = false,
         .invincibility_timer = 5.0f, 
 
@@ -121,6 +122,9 @@ int main(void)
                 (F32)screenWidth/2  + radius * cosf(angle),
                 (F32)screenHeight/2 + radius * sinf(angle)},
             .speed = 50.0f,
+
+            .health = 100.0f,
+            .max_health = 100.0f,
         };
         arrput(enemies, enemy);
     }
@@ -206,6 +210,7 @@ void UpdateDrawFrame(void)
     player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
     player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){(F32)screenWidth - TILE_SIZE, (F32)screenHeight - TILE_SIZE});
 
+    player.health = Clamp(player.health, 0.0f, player.max_health);
     player.invincibility_timer -= dt;
     if (player.invincibility_timer <= 0) player.is_invincible = false;
 
@@ -220,6 +225,10 @@ void UpdateDrawFrame(void)
             spell.cooldown_timer = 0.0f;
         }
     }
+
+    player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
+    apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
+
 
     // PLAYER SPELL
 
@@ -280,10 +289,20 @@ void UpdateDrawFrame(void)
         Rect enemy_rect  = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
 
         if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
-            player.health -= 1;
+            player.health -= 1.0f;
             player.is_invincible = true;
             player.invincibility_timer = 0.2f;
         }
+
+        enemy->health = Clamp(enemy->health, 0.0f, enemy->max_health);
+        if (enemy->health == 0.0f) {
+            arrdel(enemies, i); 
+        }
+        if (player.current_spell == DEATH_RAY && 
+            CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
+            enemy->health -= 1.0f;
+        }
+
     }
 
     // Apprentice
@@ -324,30 +343,30 @@ void UpdateDrawFrame(void)
         for (int i=0; i < arrlen(enemies); i++) {
             src = get_atlas(i%4,4);
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
-            if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
-        }
+            if (show_atlas) {
+                DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
 
-        Rect player_health_rect = (Rect) {
-            player.pos.x, 
-            player.pos.y + TILE_SIZE + 10, 
-            (player.health/100.0f)*TILE_SIZE, 
-            10.0f
-        };
-        DrawRectangleRec(player_health_rect, PAL4);
+                Rect enemy_health_rect = (Rect) {
+                    enemies[i].pos.x, 
+                    enemies[i].pos.y + TILE_SIZE + 10, 
+                    (enemies[i].health/100.0f)*TILE_SIZE, 
+                    10.0f
+                };
+                DrawRectangleRec(enemy_health_rect, PAL4);
+                DrawRectangleLinesEx(enemy_health_rect, 2, PAL5);
+            }
+
+        }
 
         switch (player.current_spell) {
         case NO_SPELL: break;
         case MANA_RAY:
-            Vec2 p1 = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
-            Vec2 p2 = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
-            DrawLineEx(p1, p2, 16, PAL0);
-            DrawLineEx(p1, p2, 10, PAL1);
+            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
+            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
             break;
         case DEATH_RAY:
-            p1 = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
-            p2 = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
-            DrawLineEx(p1, p2, 16, PAL3);
-            DrawLineEx(p1, p2, 10, PAL4);
+            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
+            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
 
             break;
         }
@@ -391,8 +410,17 @@ void UpdateDrawFrame(void)
             DrawText(TextFormat("Spell: %i", player.current_spell), 16, screenHeight-80, 20, PAL4);
 
             DrawFPS(10,10);
-
         }
+
+        Rect player_health_rect = (Rect) {
+            player.pos.x, 
+            player.pos.y + TILE_SIZE + 10, 
+            (player.health/100.0f)*TILE_SIZE, 
+            10.0f
+        };
+        DrawRectangleRec(player_health_rect, PAL4);
+        DrawRectangleLinesEx(player_health_rect, 2, PAL5);
+
 
     EndDrawing();
     //----------------------------------------------------------------------------------
