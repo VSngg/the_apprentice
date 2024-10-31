@@ -7,9 +7,6 @@
 		{
 			"path": "C:\\raylib\\raylib\\src",
 		},
-		{
-			"path": "C:\\raylib\\raylib\\examples",
-		}
 	],
 	"build_systems": [
         {
@@ -20,23 +17,23 @@
             "variants": [
                 {
                     "name": "Run",
-                    "cmd": ["${project_path}/build.bat", "run"]
+                    "cmd": ["${project_path}/build.bat", "run"],
                 },
                 {
                     "name": "Build",
-                    "cmd": ["${project_path}/build.bat", "build"]
+                    "cmd": ["${project_path}/build.bat", "build"],
                 }
-            ]
+			],
         }
-    ],
+	],
 	"settings":
 	{
 		"LSP":
 		{
 			"clangd":
 			{
-				"enabled": false
-			}
-		}
+				"enabled": false,
+			},
+		},
 	},
 }
