@@ -107,9 +107,10 @@ int main(void)
         .mana_cost      = 25.0f,
     };
 
-    for (int i = 0; i < 20; i++) {
-        F32 angle = (2.0f * PI * i) / 20;
-        F32 radius = 700.0f;
+    int number_of_enemies = 10;
+    for (int i = 0; i < number_of_enemies; i++) {
+        F32 angle = (2.0f * PI * i) / number_of_enemies;
+        F32 radius = 500.0f;
         Enemy enemy = {
             .pos = (Vec2){
                 (F32)screenWidth/2  + radius * cosf(angle),
@@ -175,7 +176,7 @@ void UpdateDrawFrame(void)
     // PLAYER
 
     if (IsKeyPressed(KEY_E)) {
-        player.casting_mana_ray = !player.casting_mana_ray;
+        player.current_spell = (player.current_spell + 1) % SPELL_COUNT;
     }
 
     Vec2 input = {0};
@@ -268,14 +269,15 @@ void UpdateDrawFrame(void)
         }
 
     }
-        // Apprentice
+
+    // Apprentice
 
     if (IsKeyPressed(KEY_Q)) {
         apprentice.following_player = !apprentice.following_player;
     }
 
+    Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
     if (apprentice.following_player) {
-        Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
         Vec2 appr_to_player_vel  = Vector2Normalize(appr_to_player_diff);
         F32  appr_to_player_dist = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(apprentice.pos));
 
@@ -283,6 +285,13 @@ void UpdateDrawFrame(void)
             apprentice.pos = Vector2Add(apprentice.pos, Vector2Scale(appr_to_player_vel, apprentice.speed*dt));
         }
     }
+
+    if (appr_to_player_diff.x < 0) {
+        apprentice.flip_texture = FLIP_X;
+    } else {
+        apprentice.flip_texture = NO_FLIP;
+    }
+
 
 
 
@@ -305,11 +314,21 @@ void UpdateDrawFrame(void)
             if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
         }
 
-        if (player.casting_mana_ray) {
+        switch (player.current_spell) {
+        case NO_SPELL: break;
+        case MANA_RAY:
             Vec2 p1 = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
             Vec2 p2 = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
             DrawLineEx(p1, p2, 16, PAL0);
             DrawLineEx(p1, p2, 10, PAL1);
+            break;
+        case DEATH_RAY:
+            p1 = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
+            p2 = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
+            DrawLineEx(p1, p2, 16, PAL3);
+            DrawLineEx(p1, p2, 10, PAL4);
+
+            break;
         }
 
 
@@ -329,9 +348,9 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
         if (show_atlas) {
-            DrawTextureEx(atlas, (Vec2){16, 48}, 0, 3, WHITE);
+            DrawTextureEx(atlas, (Vec2){16, 64}, 0, 3, WHITE);
             for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
-                Vec2 pos = {16.0f + i*32, 16.0f};
+                Vec2 pos = {16.0f + i*32, 32.0f};
                 Vec2 size = {32, 32};
                 DrawRectangleV(pos, size, Color_Palette[i]);
                 Color color = i == 5 ? PAL0 : PAL5;
@@ -348,6 +367,7 @@ void UpdateDrawFrame(void)
             }
             DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-40, 20, PAL4);
             DrawText(TextFormat("dt: %f", GetFrameTime()), 16, screenHeight-60, 20, PAL4);
+            DrawText(TextFormat("Spell: %i", player.current_spell), 16, screenHeight-80, 20, PAL4);
 
             DrawFPS(10,10);
 

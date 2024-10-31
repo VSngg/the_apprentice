@@ -35,6 +35,13 @@ typedef enum {
     FLIP_XY
 } Flip_Texture;
 
+typedef enum {
+    NO_SPELL = 0,
+    MANA_RAY,
+    DEATH_RAY,
+    SPELL_COUNT,
+} Current_Spell;
+
 typedef struct Player {
     Vec2 pos;
     F32  speed;
@@ -43,7 +50,7 @@ typedef struct Player {
     F32  max_mana;
     F32  mana_regen;
 
-    bool casting_mana_ray;
+    Current_Spell current_spell;
 
     Flip_Texture flip_texture;
 } Player;
