@@ -81,6 +81,7 @@ typedef struct Apprentice {
 } Apprentice;
 
 typedef struct Enemy {
+    bool alive;
     Vec2 pos;
     F32  speed;
 
@@ -116,6 +117,9 @@ static Color Color_Palette[8] = {
 #define SPRITE_CENTER(pos) ((Vec2){(pos).x + TILE_SIZE/2, (pos).y + TILE_SIZE/2})
 
 #define MAX_ENEMIES 512
+
+#define DEATH_RAY_DAMAGE 0.5f
+#define ENEMY_DAMAGE 1.0f
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------

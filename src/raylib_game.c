@@ -118,6 +118,7 @@ int main(void)
         F32 angle = (2.0f * PI * i) / number_of_enemies;
         F32 radius = 500.0f;
         Enemy enemy = {
+            .alive = true,
             .pos = (Vec2){
                 (F32)screenWidth/2  + radius * cosf(angle),
                 (F32)screenHeight/2 + radius * sinf(angle)},
@@ -245,6 +246,7 @@ void UpdateDrawFrame(void)
     // TODO: shoot projectile in the direction of enemy.
 
     for (int i = 0; i < arrlen(enemies); i++) {
+        Enemy* enemy = &enemies[i];
         Vec2 separation = {0, 0};
         int  neighbours = 0;
 
@@ -270,7 +272,6 @@ void UpdateDrawFrame(void)
             separation = Vector2ClampValue(separation, min_force, max_force);
         }
 
-        Enemy* enemy = &enemies[i];
         Vec2 enemy_to_player_dist_vec = Vector2Subtract(player.pos, enemy->pos);
         Vec2 enemy_to_player_vel      = Vector2Add(Vector2Normalize(enemy_to_player_dist_vec), separation);
         F32  enemy_to_player_dist     = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy->pos));
@@ -289,18 +290,20 @@ void UpdateDrawFrame(void)
         Rect enemy_rect  = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
 
         if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
-            player.health -= 1.0f;
+            player.health -= ENEMY_DAMAGE;
             player.is_invincible = true;
             player.invincibility_timer = 0.2f;
         }
 
         enemy->health = Clamp(enemy->health, 0.0f, enemy->max_health);
+        if (!enemy->alive) arrdel(enemies, i); 
+
         if (enemy->health == 0.0f) {
-            arrdel(enemies, i); 
+            enemy->alive = false;
         }
         if (player.current_spell == DEATH_RAY && 
             CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
-            enemy->health -= 1.0f;
+            enemy->health -= DEATH_RAY_DAMAGE;
         }
 
     }
@@ -358,18 +361,29 @@ void UpdateDrawFrame(void)
 
         }
 
+        Rect spell_icon_rect = {0};
         switch (player.current_spell) {
-        case NO_SPELL: break;
+        case NO_SPELL: 
+            spell_icon_rect = get_atlas(0,9);
+            break;
         case MANA_RAY:
             DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
             DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
+            spell_icon_rect = get_atlas(1,9);
             break;
         case DEATH_RAY:
             DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
             DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
-
+            spell_icon_rect = get_atlas(2,9);
             break;
         }
+        draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
+
+        Rect follow_icon = get_atlas(3,9);
+        if (apprentice.following_player) {
+            follow_icon = get_atlas(4,9);
+        }
+        draw_sprite(atlas, follow_icon, (Vec2){screenWidth - 150, screenHeight - 80}, NO_FLIP, WHITE);
 
 
     EndTextureMode();
