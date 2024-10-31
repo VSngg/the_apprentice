@@ -46,6 +46,10 @@ typedef struct Player {
     Vec2 pos;
     F32  speed;
 
+    F32  health;
+    bool is_invincible;
+    F32  invincibility_timer;
+
     F32  current_mana;
     F32  max_mana;
     F32  mana_regen;

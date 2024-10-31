@@ -90,6 +90,11 @@ int main(void)
     player = (Player){
         .pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2, screenHeight/2.0f - TILE_SIZE/2},
         .speed = 200.0f,
+
+        .health = 100.0f,
+        .is_invincible = false,
+        .invincibility_timer = 5.0f, 
+
         .current_mana = 0.0f,
         .max_mana = 100.0f,
         .mana_regen = 5.0f,
@@ -201,6 +206,9 @@ void UpdateDrawFrame(void)
     player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
     player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){(F32)screenWidth - TILE_SIZE, (F32)screenHeight - TILE_SIZE});
 
+    player.invincibility_timer -= dt;
+    if (player.invincibility_timer <= 0) player.is_invincible = false;
+
     player.current_mana += player.mana_regen * dt;
     if (player.current_mana >= player.max_mana) player.current_mana = player.max_mana;
 
@@ -268,6 +276,14 @@ void UpdateDrawFrame(void)
             enemy->flip_texture = NO_FLIP;
         }
 
+        Rect player_rect = (Rect){player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
+        Rect enemy_rect  = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
+
+        if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
+            player.health -= 1;
+            player.is_invincible = true;
+            player.invincibility_timer = 0.2f;
+        }
     }
 
     // Apprentice
@@ -292,9 +308,6 @@ void UpdateDrawFrame(void)
         apprentice.flip_texture = NO_FLIP;
     }
 
-
-
-
     // Draw
     //----------------------------------------------------------------------------------
     // Render game screen to a texture,
@@ -313,6 +326,14 @@ void UpdateDrawFrame(void)
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
             if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
         }
+
+        Rect player_health_rect = (Rect) {
+            player.pos.x, 
+            player.pos.y + TILE_SIZE + 10, 
+            (player.health/100.0f)*TILE_SIZE, 
+            10.0f
+        };
+        DrawRectangleRec(player_health_rect, PAL4);
 
         switch (player.current_spell) {
         case NO_SPELL: break;
