@@ -43,6 +43,8 @@ typedef struct Player {
     F32  max_mana;
     F32  mana_regen;
 
+    bool casting_mana_ray;
+
     Flip_Texture flip_texture;
 } Player;
 
@@ -51,6 +53,16 @@ typedef struct Spell {
     B32 is_on_cooldown;
     F32 mana_cost;
 } Spell;
+
+typedef struct Apprentice {
+    Vec2 pos;
+    F32 speed;
+
+    bool following_player;
+
+    Flip_Texture flip_texture;
+
+} Apprentice;
 
 typedef struct Enemy {
     Vec2 pos;

@@ -46,8 +46,8 @@
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
-static const I32 screenWidth = 1024;
-static const I32 screenHeight = 768;
+static const I32 screenWidth = 675;
+static const I32 screenHeight = 900;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 
@@ -59,6 +59,7 @@ bool show_atlas = true;
 
 Player player = {0};
 Spell  spell  = {0};
+Apprentice apprentice = {0};
 
 Enemy *enemies = NULL;
 
@@ -76,8 +77,6 @@ int main(void)
     InitWindow(screenWidth, screenHeight, "The Apprentice");
 
     // TODO: Load resources / Initialize variables at this point
-    // Image atlas_image = LoadImage("src/resources/atlas.png");
-    // Image atlas_image = LoadImageFromMemory(".png", ATLAS_DATA, sizeof(ATLAS_DATA));
     Image atlas_image = {0};
 
     atlas_image.format = ATLAS_FORMAT;
@@ -96,6 +95,12 @@ int main(void)
         .mana_regen = 5.0f,
     };
 
+    apprentice = (Apprentice) {
+        .pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2 - 30, screenHeight/2.0f - TILE_SIZE/2 - 30},
+        .speed = 150.0f,
+        .following_player = false,
+    };
+
     spell = (Spell) {
         .cooldown_timer = 0.0f,
         .is_on_cooldown = false,
@@ -109,7 +114,7 @@ int main(void)
             .pos = (Vec2){
                 (F32)screenWidth/2  + radius * cosf(angle),
                 (F32)screenHeight/2 + radius * sinf(angle)},
-            .speed = 100.0f,
+            .speed = 50.0f,
         };
         arrput(enemies, enemy);
     }
@@ -167,6 +172,12 @@ void UpdateDrawFrame(void)
         show_atlas = !show_atlas;
     }
 
+    // PLAYER
+
+    if (IsKeyPressed(KEY_E)) {
+        player.casting_mana_ray = !player.casting_mana_ray;
+    }
+
     Vec2 input = {0};
 
     if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
@@ -201,6 +212,8 @@ void UpdateDrawFrame(void)
         }
     }
 
+    // PLAYER SPELL
+
     if (!spell.is_on_cooldown && player.current_mana >= spell.mana_cost) {
         player.current_mana -= spell.mana_cost;
 
@@ -210,6 +223,7 @@ void UpdateDrawFrame(void)
         TraceLog(LOG_INFO, "Shooting projectile");
     }
 
+    // ENEMIES
     // TODO: shoot projectile in the direction of enemy.
 
     for (int i = 0; i < arrlen(enemies); i++) {
@@ -252,7 +266,24 @@ void UpdateDrawFrame(void)
         } else {
             enemy->flip_texture = NO_FLIP;
         }
+
     }
+        // Apprentice
+
+    if (IsKeyPressed(KEY_Q)) {
+        apprentice.following_player = !apprentice.following_player;
+    }
+
+    if (apprentice.following_player) {
+        Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
+        Vec2 appr_to_player_vel  = Vector2Normalize(appr_to_player_diff);
+        F32  appr_to_player_dist = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(apprentice.pos));
+
+        if (appr_to_player_dist > TILE_SIZE*1.5f) {
+            apprentice.pos = Vector2Add(apprentice.pos, Vector2Scale(appr_to_player_vel, apprentice.speed*dt));
+        }
+    }
+
 
 
     // Draw
@@ -265,11 +296,20 @@ void UpdateDrawFrame(void)
         // TODO: Draw your game screen here
         Rect src = get_atlas(0,0);
         draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
+        src = get_atlas(0,2);
+        draw_sprite(atlas, src, apprentice.pos, apprentice.flip_texture, WHITE);
 
         for (int i=0; i < arrlen(enemies); i++) {
             src = get_atlas(i%4,4);
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
             if (show_atlas) DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
+        }
+
+        if (player.casting_mana_ray) {
+            Vec2 p1 = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
+            Vec2 p2 = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
+            DrawLineEx(p1, p2, 16, PAL0);
+            DrawLineEx(p1, p2, 10, PAL1);
         }
 
 
@@ -289,7 +329,7 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
         if (show_atlas) {
-            DrawTextureEx(atlas, (Vec2){16, 48}, 0, 4, WHITE);
+            DrawTextureEx(atlas, (Vec2){16, 48}, 0, 3, WHITE);
             for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
                 Vec2 pos = {16.0f + i*32, 16.0f};
                 Vec2 size = {32, 32};
@@ -298,15 +338,16 @@ void UpdateDrawFrame(void)
 
                 DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
             }
-            DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-64, 20, PAL4);
 
             if (spell.is_on_cooldown) {
                 const char* text = TextFormat("Cooldown: %.1f", spell.cooldown_timer);
-                DrawText(text, 16, screenHeight-32, 20, PAL4);
+                DrawText(text, 16, screenHeight-20, 20, PAL4);
             } else {
                 const char* text = "Ready!";
-                DrawText(text, 16, screenHeight-32, 20, PAL7);
+                DrawText(text, 16, screenHeight-20, 20, PAL7);
             }
+            DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-40, 20, PAL4);
+            DrawText(TextFormat("dt: %f", GetFrameTime()), 16, screenHeight-60, 20, PAL4);
 
             DrawFPS(10,10);
 
