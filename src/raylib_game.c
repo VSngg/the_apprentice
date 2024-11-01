@@ -217,13 +217,15 @@ void UpdateDrawFrame(void)
 
     player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
     apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
+    F32 spellray_distance = Vector2Distance(player.ray_anchor, apprentice.ray_anchor);
 
     if (IsKeyPressed(KEY_E)) {
         player.active_spell = (player.active_spell + 1) % SPELL_KIND_COUNT;
 
         // Try casting if enough mana
         if (player.active_spell != NO_SPELL &&
-            player.mana >= SPELLS[player.active_spell].initial_cost) {
+            player.mana >= SPELLS[player.active_spell].initial_cost &&
+            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
             player.is_casting = true;
             player.mana -= SPELLS[player.active_spell].initial_cost;
         } else {
@@ -233,14 +235,21 @@ void UpdateDrawFrame(void)
 
     if (player.active_spell != NO_SPELL) {
         // Initial cast
-        if (!player.is_casting && player.mana >= SPELLS[player.active_spell].initial_cost) {
+        if (!player.is_casting && 
+            player.mana >= SPELLS[player.active_spell].initial_cost &&
+            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
             player.is_casting = true;
             player.mana -= SPELLS[player.active_spell].initial_cost;
         }
 
         // Continue cast
         if (player.is_casting) {
+            if (spellray_distance >= SPELLS[player.active_spell].activation_distance) {
+                player.is_casting = false;
+            }
+
             F32 mana_cost = SPELLS[player.active_spell].cost_per_second * dt;
+
             if (player.mana >= mana_cost) {
                 player.mana -= mana_cost;
             } else {
@@ -253,8 +262,9 @@ void UpdateDrawFrame(void)
         player.mana += player.mana_regen * dt;
         player.mana = Clamp(player.mana, 0.0f, player.max_mana);
 
-        if (player.active_spell != NO_SPELL 
-            && player.mana >= SPELLS[player.active_spell].initial_cost) {
+        if (player.active_spell != NO_SPELL && 
+            player.mana >= SPELLS[player.active_spell].initial_cost &&
+            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
             player.is_casting = true;
             player.mana -= SPELLS[player.active_spell].initial_cost;
         }
@@ -379,7 +389,7 @@ void UpdateDrawFrame(void)
             src = get_atlas(enemies[i].id%4,4);
 
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
-            
+
             if (should_draw_debug_ui) {
                 DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
 
@@ -396,20 +406,29 @@ void UpdateDrawFrame(void)
         }
 
         if (player.is_casting) {
+            F32 ad;
             switch (player.active_spell) {
             case NO_SPELL: break;
             case MANA_RAY:
+                ad = SPELLS[MANA_RAY].activation_distance;
+                DrawRing(apprentice.ray_anchor, ad-2, ad+2, 0, 360, 48, PAL0);
+
                 DrawCircleV(player.ray_anchor, 8, PAL0);
                 DrawCircleV(apprentice.ray_anchor, 8, PAL0);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
+
                 DrawCircleV(player.ray_anchor, 5, PAL1);
                 DrawCircleV(apprentice.ray_anchor, 5, PAL1);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
                 break;
             case DEATH_RAY:
+                ad = SPELLS[MANA_RAY].activation_distance;
+                DrawRing(apprentice.ray_anchor, ad-2, ad+2, 0, 360, 48, PAL3);
+
                 DrawCircleV(player.ray_anchor, 8, PAL3);
                 DrawCircleV(apprentice.ray_anchor, 8, PAL3);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
+                
                 DrawCircleV(player.ray_anchor, 5, PAL4);
                 DrawCircleV(apprentice.ray_anchor, 5, PAL4);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);

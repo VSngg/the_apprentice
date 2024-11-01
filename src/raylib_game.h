@@ -65,6 +65,7 @@ typedef struct Player {
 typedef struct Spell{
     F32 initial_cost;
     F32 cost_per_second;
+    F32 activation_distance;
 } Spell;
 
 typedef struct Apprentice {
@@ -108,9 +109,9 @@ static Color Color_Palette[8] = {
 };
 
 const Spell SPELLS[] = {
-    [NO_SPELL]  = {0.0f, 0.0f},
-    [MANA_RAY]  = {20.0f, 1.0f},
-    [DEATH_RAY] = {20.0f, 2.0f},
+    [NO_SPELL]  = {0.0f, 0.0f, 0.0f},
+    [MANA_RAY]  = {20.0f, 1.0f, 500.0f},
+    [DEATH_RAY] = {20.0f, 2.0f, 500.0f},
 };
 
 
