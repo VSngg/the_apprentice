@@ -57,7 +57,7 @@ static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 int frames_counter = 0;
 static Texture atlas;
-bool show_atlas = true;
+bool should_draw_debug_ui = true;
 
 Player player = {0};
 Apprentice apprentice = {0};
@@ -180,9 +180,9 @@ void UpdateDrawFrame(void)
     frames_counter++;
 
     if (IsKeyPressed(KEY_TAB)) {
-        const char* text = show_atlas ? "Hiding atlas" : "Showing atlas";
+        const char* text = should_draw_debug_ui ? "Hiding atlas" : "Showing atlas";
         TraceLog(LOG_INFO, text);
-        show_atlas = !show_atlas;
+        should_draw_debug_ui = !should_draw_debug_ui;
     }
 
     // PLAYER
@@ -368,7 +368,7 @@ void UpdateDrawFrame(void)
         for (int i=0; i < arrlen(enemies); i++) {
             src = get_atlas(enemies[i].id%4,4);
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
-            if (show_atlas) {
+            if (should_draw_debug_ui) {
                 DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
 
                 Rect enemy_health_rect = (Rect) {
@@ -395,11 +395,6 @@ void UpdateDrawFrame(void)
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
                 break;            
             }
-        }
-
-        Rect follow_icon = get_atlas(3,9);
-        if (apprentice.following_player) {
-            follow_icon = get_atlas(4,9);
         }
 
         Rect player_health_rect = (Rect) {
@@ -436,43 +431,54 @@ void UpdateDrawFrame(void)
             WHITE);
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
-        if (show_atlas) {
-            DrawTextureEx(atlas, (Vec2){16, 64}, 0, 3, WHITE);
-            for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
-                Vec2 pos = {16.0f + i*32, 32.0f};
-                Vec2 size = {32, 32};
-                DrawRectangleV(pos, size, Color_Palette[i]);
-                Color color = i == 5 ? PAL0 : PAL5;
+        if (should_draw_debug_ui) draw_debug_ui();
 
-                DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
-            }
-
-            DrawText(TextFormat("MANA: %.2f", player.mana), 16, screenHeight-40, 20, PAL4);
-            DrawText(TextFormat("dt: %f", GetFrameTime()), 16, screenHeight-60, 20, PAL4);
-            DrawText(TextFormat("Spell: %i", player.active_spell), 16, screenHeight-80, 20, PAL4);
-
-            DrawFPS(10,10);
-        }
-
-        Rect spell_icon_rect = {0};
-        switch (player.active_spell) {
-        case NO_SPELL: 
-            spell_icon_rect = get_atlas(0,9);
-            break;
-        case MANA_RAY:
-            spell_icon_rect = get_atlas(1,9);
-            break;
-        case DEATH_RAY:
-            spell_icon_rect = get_atlas(2,9);
-            break;
-        }
-        
-        draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
-        draw_sprite(atlas, follow_icon, (Vec2){screenWidth - 150, screenHeight - 80}, NO_FLIP, WHITE);
-
+        draw_ui();
 
     EndDrawing();
     //----------------------------------------------------------------------------------
+}
+
+void draw_ui(void) {
+    Rect follow_icon = get_atlas(3,9);
+    if (apprentice.following_player) {
+        follow_icon = get_atlas(4,9);
+    }
+    draw_sprite(atlas, follow_icon, (Vec2){screenWidth - 150, screenHeight - 80}, NO_FLIP, WHITE);
+
+    Rect spell_icon_rect = {0};
+    switch (player.active_spell) {
+    case NO_SPELL: 
+        spell_icon_rect = get_atlas(0,9);
+        break;
+    case MANA_RAY:
+        spell_icon_rect = get_atlas(1,9);
+        break;
+    case DEATH_RAY:
+        spell_icon_rect = get_atlas(2,9);
+        break;
+    }
+
+    draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
+}
+
+void draw_debug_ui(void) {
+    DrawTextureEx(atlas, (Vec2){16, 64}, 0, 3, WHITE);
+
+    for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
+        Vec2 pos = {16.0f + i*32, 32.0f};
+        Vec2 size = {32, 32};
+        DrawRectangleV(pos, size, Color_Palette[i]);
+        Color color = i == 5 ? PAL0 : PAL5;
+
+        DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
+    }
+
+    DrawText(TextFormat("MANA: %.2f", player.mana), 16, screenHeight-40, 20, PAL4);
+    DrawText(TextFormat("dt: %f", GetFrameTime()), 16, screenHeight-60, 20, PAL4);
+    DrawText(TextFormat("Spell: %i", player.active_spell), 16, screenHeight-80, 20, PAL4);
+
+    DrawFPS(10,10);
 }
 
 Rect get_atlas(int col, int row) {

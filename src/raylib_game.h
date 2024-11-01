@@ -71,6 +71,11 @@ typedef struct Apprentice {
     Vec2 pos;
     F32 speed;
 
+    F32  health;
+    F32  max_health;
+    bool is_invincible;
+    F32  invincibility_timer;
+
     bool following_player;
 
     Vec2 ray_anchor;
@@ -131,6 +136,8 @@ const Spell SPELLS[] = {
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
+void draw_ui(void);
+void draw_debug_ui(void);
 Rect get_atlas(int row, int col);
 void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint);
 
