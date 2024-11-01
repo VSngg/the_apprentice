@@ -39,8 +39,8 @@ typedef enum {
     NO_SPELL = 0,
     MANA_RAY,
     DEATH_RAY,
-    SPELL_COUNT,
-} Current_Spell;
+    SPELL_KIND_COUNT,
+} Spell_Kind;
 
 typedef struct Player {
     Vec2 pos;
@@ -51,21 +51,20 @@ typedef struct Player {
     bool is_invincible;
     F32  invincibility_timer;
 
-    F32  current_mana;
-    F32  max_mana;
-    F32  mana_regen;
+    Spell_Kind active_spell;
+    F32        mana;
+    F32        max_mana;
+    F32        mana_regen;
+    bool       is_casting;
 
     Vec2 ray_anchor;
-
-    Current_Spell current_spell;
 
     Flip_Texture flip_texture;
 } Player;
 
-typedef struct Spell {
-    F32 cooldown_timer;
-    B32 is_on_cooldown;
-    F32 mana_cost;
+typedef struct Spell{
+    F32 initial_cost;
+    F32 cost_per_second;
 } Spell;
 
 typedef struct Apprentice {
@@ -81,6 +80,7 @@ typedef struct Apprentice {
 } Apprentice;
 
 typedef struct Enemy {
+    int  id;
     bool alive;
     Vec2 pos;
     F32  speed;
@@ -101,6 +101,13 @@ static Color Color_Palette[8] = {
     {  93,  69,  62, 255 },
     { 144, 124, 104, 255 },
 };
+
+const Spell SPELLS[] = {
+    [NO_SPELL]  = {0.0f, 0.0f},
+    [MANA_RAY]  = {20.0f, 1.0f},
+    [DEATH_RAY] = {20.0f, 2.0f},
+};
+
 
 #define PAL0 Color_Palette[0]
 #define PAL1 Color_Palette[1]

@@ -48,6 +48,8 @@
 //----------------------------------------------------------------------------------
 static const I32 screenWidth = 675;
 static const I32 screenHeight = 900;
+static const F32 map_width = 675*4;
+static const F32 map_height = 900*4;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 
@@ -58,10 +60,11 @@ static Texture atlas;
 bool show_atlas = true;
 
 Player player = {0};
-Spell  spell  = {0};
 Apprentice apprentice = {0};
 
 Enemy *enemies = NULL;
+
+Camera2D camera = {0};
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -88,7 +91,7 @@ int main(void)
     atlas = LoadTextureFromImage(atlas_image);
 
     player = (Player){
-        .pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2, screenHeight/2.0f - TILE_SIZE/2},
+        .pos = (Vec2){map_height/2.0f - TILE_SIZE/2, map_width/2.0f - TILE_SIZE/2},
         .speed = 200.0f,
 
         .health = 100.0f,
@@ -96,21 +99,15 @@ int main(void)
         .is_invincible = false,
         .invincibility_timer = 5.0f, 
 
-        .current_mana = 0.0f,
+        .mana = 100.0f,
         .max_mana = 100.0f,
-        .mana_regen = 5.0f,
+        .mana_regen = 10.0f,
     };
 
     apprentice = (Apprentice) {
-        .pos = (Vec2){screenWidth/2.0f - TILE_SIZE/2 - 30, screenHeight/2.0f - TILE_SIZE/2 - 30},
+        .pos = (Vec2){map_width/2.0f - TILE_SIZE/2 - 30, map_height/2.0f - TILE_SIZE/2 - 30},
         .speed = 150.0f,
         .following_player = false,
-    };
-
-    spell = (Spell) {
-        .cooldown_timer = 0.0f,
-        .is_on_cooldown = false,
-        .mana_cost      = 25.0f,
     };
 
     int number_of_enemies = 10;
@@ -118,10 +115,11 @@ int main(void)
         F32 angle = (2.0f * PI * i) / number_of_enemies;
         F32 radius = 500.0f;
         Enemy enemy = {
+            .id = i,
             .alive = true,
             .pos = (Vec2){
-                (F32)screenWidth/2  + radius * cosf(angle),
-                (F32)screenHeight/2 + radius * sinf(angle)},
+                (F32)map_width/2  + radius * cosf(angle),
+                (F32)map_height/2 + radius * sinf(angle)},
             .speed = 50.0f,
 
             .health = 100.0f,
@@ -129,6 +127,10 @@ int main(void)
         };
         arrput(enemies, enemy);
     }
+
+    camera.target = player.pos;
+    camera.offset = (Vec2) {screenWidth/2 - TILE_SIZE/2, screenHeight/2 - TILE_SIZE/2};
+    camera.zoom = 1.0f;
 
     // Render texture to draw full screen, enables screen scaling
     // NOTE: If screen is scaled, mouse input should be scaled proportionally
@@ -185,10 +187,6 @@ void UpdateDrawFrame(void)
 
     // PLAYER
 
-    if (IsKeyPressed(KEY_E)) {
-        player.current_spell = (player.current_spell + 1) % SPELL_COUNT;
-    }
-
     Vec2 input = {0};
 
     if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
@@ -209,38 +207,59 @@ void UpdateDrawFrame(void)
     input = Vector2Normalize(input);
 
     player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
-    player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){(F32)screenWidth - TILE_SIZE, (F32)screenHeight - TILE_SIZE});
+    player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){map_width, map_height});
+
+    camera.target = player.pos;
 
     player.health = Clamp(player.health, 0.0f, player.max_health);
     player.invincibility_timer -= dt;
     if (player.invincibility_timer <= 0) player.is_invincible = false;
 
-    player.current_mana += player.mana_regen * dt;
-    if (player.current_mana >= player.max_mana) player.current_mana = player.max_mana;
-
-    if (spell.is_on_cooldown) {
-        spell.cooldown_timer -= dt;
-
-        if (spell.cooldown_timer <= 0) {
-            spell.is_on_cooldown = false;
-            spell.cooldown_timer = 0.0f;
-        }
-    }
-
     player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
     apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
 
+    if (IsKeyPressed(KEY_E)) {
+        player.active_spell = (player.active_spell + 1) % SPELL_KIND_COUNT;
 
-    // PLAYER SPELL
-
-    if (!spell.is_on_cooldown && player.current_mana >= spell.mana_cost) {
-        player.current_mana -= spell.mana_cost;
-
-        spell.is_on_cooldown = true;
-        spell.cooldown_timer = 5.0;
-
-        TraceLog(LOG_INFO, "Shooting projectile");
+        // Try casting if enough mana
+        if (player.active_spell != NO_SPELL &&
+            player.mana >= SPELLS[player.active_spell].initial_cost) {
+            player.is_casting = true;
+            player.mana -= SPELLS[player.active_spell].initial_cost;
+        } else {
+            player.is_casting = false;
+        }
     }
+
+    if (player.active_spell != NO_SPELL) {
+        // Initial cast
+        if (!player.is_casting && player.mana >= SPELLS[player.active_spell].initial_cost) {
+            player.is_casting = true;
+            player.mana -= SPELLS[player.active_spell].initial_cost;
+        }
+
+        // Continue cast
+        if (player.is_casting) {
+            F32 mana_cost = SPELLS[player.active_spell].cost_per_second * dt;
+            if (player.mana >= mana_cost) {
+                player.mana -= mana_cost;
+            } else {
+                player.is_casting = false;
+            }
+        }
+    }
+
+    if (!player.is_casting) {
+        player.mana += player.mana_regen * dt;
+        player.mana = Clamp(player.mana, 0.0f, player.max_mana);
+
+        if (player.active_spell != NO_SPELL 
+            && player.mana >= SPELLS[player.active_spell].initial_cost) {
+            player.is_casting = true;
+            player.mana -= SPELLS[player.active_spell].initial_cost;
+        }
+    }
+
 
     // ENEMIES
     // TODO: shoot projectile in the direction of enemy.
@@ -301,7 +320,8 @@ void UpdateDrawFrame(void)
         if (enemy->health == 0.0f) {
             enemy->alive = false;
         }
-        if (player.current_spell == DEATH_RAY && 
+        if (player.active_spell == DEATH_RAY && 
+            player.is_casting && 
             CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
             enemy->health -= DEATH_RAY_DAMAGE;
         }
@@ -336,15 +356,17 @@ void UpdateDrawFrame(void)
     // it could be useful for scaling or further shader postprocessing
     BeginTextureMode(target);
         ClearBackground(PAL2);
+        BeginMode2D(camera);
 
         // TODO: Draw your game screen here
+        DrawRectangleLinesEx((Rect){0, 0, map_width, map_height}, TILE_SIZE, PAL5);
         Rect src = get_atlas(0,0);
         draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
         src = get_atlas(0,2);
         draw_sprite(atlas, src, apprentice.pos, apprentice.flip_texture, WHITE);
 
         for (int i=0; i < arrlen(enemies); i++) {
-            src = get_atlas(i%4,4);
+            src = get_atlas(enemies[i].id%4,4);
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
             if (show_atlas) {
                 DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
@@ -361,31 +383,44 @@ void UpdateDrawFrame(void)
 
         }
 
-        Rect spell_icon_rect = {0};
-        switch (player.current_spell) {
-        case NO_SPELL: 
-            spell_icon_rect = get_atlas(0,9);
-            break;
-        case MANA_RAY:
-            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
-            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
-            spell_icon_rect = get_atlas(1,9);
-            break;
-        case DEATH_RAY:
-            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
-            DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
-            spell_icon_rect = get_atlas(2,9);
-            break;
+        if (player.is_casting) {
+            switch (player.active_spell) {
+            case NO_SPELL: break;
+            case MANA_RAY:
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
+                break;
+            case DEATH_RAY:
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
+                break;            
+            }
         }
-        draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
 
         Rect follow_icon = get_atlas(3,9);
         if (apprentice.following_player) {
             follow_icon = get_atlas(4,9);
         }
-        draw_sprite(atlas, follow_icon, (Vec2){screenWidth - 150, screenHeight - 80}, NO_FLIP, WHITE);
+
+        Rect player_health_rect = (Rect) {
+            player.pos.x, 
+            player.pos.y + TILE_SIZE + 10, 
+            (player.health/100.0f)*TILE_SIZE, 
+            10.0f
+        };
+        Rect player_mana_rect = (Rect) {
+            player.pos.x, 
+            player.pos.y + TILE_SIZE + 25, 
+            (player.mana/100.0f)*TILE_SIZE, 
+            10.0f
+        };
+        DrawRectangleRec(player_health_rect, PAL4);
+        DrawRectangleLinesEx(player_health_rect, 2, PAL5);
+        DrawRectangleRec(player_mana_rect, PAL0);
+        DrawRectangleLinesEx(player_mana_rect, 2, PAL5);
 
 
+        EndMode2D();
     EndTextureMode();
 
     // Render to screen (main framebuffer)
@@ -412,28 +447,28 @@ void UpdateDrawFrame(void)
                 DrawText(TextFormat("%d", i), (int)pos.x + 4, (int)pos.y + 4, 24, color);
             }
 
-            if (spell.is_on_cooldown) {
-                const char* text = TextFormat("Cooldown: %.1f", spell.cooldown_timer);
-                DrawText(text, 16, screenHeight-20, 20, PAL4);
-            } else {
-                const char* text = "Ready!";
-                DrawText(text, 16, screenHeight-20, 20, PAL7);
-            }
-            DrawText(TextFormat("MANA: %.2f", player.current_mana), 16, screenHeight-40, 20, PAL4);
+            DrawText(TextFormat("MANA: %.2f", player.mana), 16, screenHeight-40, 20, PAL4);
             DrawText(TextFormat("dt: %f", GetFrameTime()), 16, screenHeight-60, 20, PAL4);
-            DrawText(TextFormat("Spell: %i", player.current_spell), 16, screenHeight-80, 20, PAL4);
+            DrawText(TextFormat("Spell: %i", player.active_spell), 16, screenHeight-80, 20, PAL4);
 
             DrawFPS(10,10);
         }
 
-        Rect player_health_rect = (Rect) {
-            player.pos.x, 
-            player.pos.y + TILE_SIZE + 10, 
-            (player.health/100.0f)*TILE_SIZE, 
-            10.0f
-        };
-        DrawRectangleRec(player_health_rect, PAL4);
-        DrawRectangleLinesEx(player_health_rect, 2, PAL5);
+        Rect spell_icon_rect = {0};
+        switch (player.active_spell) {
+        case NO_SPELL: 
+            spell_icon_rect = get_atlas(0,9);
+            break;
+        case MANA_RAY:
+            spell_icon_rect = get_atlas(1,9);
+            break;
+        case DEATH_RAY:
+            spell_icon_rect = get_atlas(2,9);
+            break;
+        }
+        
+        draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
+        draw_sprite(atlas, follow_icon, (Vec2){screenWidth - 150, screenHeight - 80}, NO_FLIP, WHITE);
 
 
     EndDrawing();
