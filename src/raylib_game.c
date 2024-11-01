@@ -46,10 +46,10 @@
 //----------------------------------------------------------------------------------
 // Global Variables Definition
 //----------------------------------------------------------------------------------
-static const I32 screenWidth = 675;
-static const I32 screenHeight = 900;
-static const F32 map_width = 675*4;
-static const F32 map_height = 900*4;
+static const I32 screenWidth = 720;
+static const I32 screenHeight = 960;
+static const F32 map_width = 30*TILE_SIZE;
+static const F32 map_height = 30*TILE_SIZE;
 
 static RenderTexture2D target = { 0 };  // Render texture to render our game
 
@@ -92,7 +92,7 @@ int main(void)
 
     player = (Player){
         .pos = (Vec2){map_height/2.0f - TILE_SIZE/2, map_width/2.0f - TILE_SIZE/2},
-        .speed = 200.0f,
+        .speed = TILE_SIZE*3,
 
         .health = 100.0f,
         .max_health = 100.0f,
@@ -106,7 +106,7 @@ int main(void)
 
     apprentice = (Apprentice) {
         .pos = (Vec2){map_width/2.0f - TILE_SIZE/2 - 30, map_height/2.0f - TILE_SIZE/2 - 30},
-        .speed = 150.0f,
+        .speed = TILE_SIZE*2.8f,
         .following_player = false,
 
         .health = 100.0f,
@@ -126,7 +126,7 @@ int main(void)
             .pos = (Vec2){
                 (F32)map_width/2  + radius * cosf(angle),
                 (F32)map_height/2 + radius * sinf(angle)},
-            .speed = 50.0f,
+            .speed = TILE_SIZE*1.5f,
 
             .health = 100.0f,
             .max_health = 100.0f,
@@ -557,7 +557,12 @@ Rect get_atlas(int col, int row) {
 
 void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint)
 {
-    Rectangle dst = { position.x, position.y, fabsf(src.width)*4, fabsf(src.height)*4 };
+    Rectangle dst = { 
+        position.x, 
+        position.y, 
+        fabsf(src.width)*TILE_UPSCALE_FACTOR,
+        fabsf(src.height)*TILE_UPSCALE_FACTOR
+    };
     Vector2 origin = { 0.0f, 0.0f };
 
     switch(flip){

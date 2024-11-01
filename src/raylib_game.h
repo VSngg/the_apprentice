@@ -124,8 +124,9 @@ const Spell SPELLS[] = {
 #define PAL6 Color_Palette[6]
 #define PAL7 Color_Palette[7]
 
-#define TILE_SIZE 64
 #define TILE_SIZE_ORIGINAL 16
+#define TILE_UPSCALE_FACTOR 3
+#define TILE_SIZE TILE_SIZE_ORIGINAL*TILE_UPSCALE_FACTOR
 
 #define SPRITE_CENTER(pos) ((Vec2){(pos).x + TILE_SIZE/2, (pos).y + TILE_SIZE/2})
 
