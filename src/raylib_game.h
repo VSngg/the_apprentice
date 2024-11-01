@@ -132,6 +132,7 @@ const Spell SPELLS[] = {
 
 #define DEATH_RAY_DAMAGE 0.5f
 #define ENEMY_DAMAGE 1.0f
+#define ENEMY_MANA_BURN 0.1f
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------

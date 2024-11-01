@@ -320,10 +320,18 @@ void UpdateDrawFrame(void)
         if (enemy->health == 0.0f) {
             enemy->alive = false;
         }
-        if (player.active_spell == DEATH_RAY && 
-            player.is_casting && 
-            CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
-            enemy->health -= DEATH_RAY_DAMAGE;
+
+        if (player.active_spell == DEATH_RAY && player.is_casting) {
+            if (CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
+                enemy->health -= DEATH_RAY_DAMAGE;
+            }
+        }
+
+        // Burn mana if enemies touch mana ray
+        if (player.active_spell == MANA_RAY && player.is_casting) {
+            if (CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
+                player.mana -= ENEMY_MANA_BURN;
+            }
         }
 
     }
@@ -360,14 +368,18 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw your game screen here
         DrawRectangleLinesEx((Rect){0, 0, map_width, map_height}, TILE_SIZE, PAL5);
+
         Rect src = get_atlas(0,0);
         draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
+
         src = get_atlas(0,2);
         draw_sprite(atlas, src, apprentice.pos, apprentice.flip_texture, WHITE);
 
         for (int i=0; i < arrlen(enemies); i++) {
             src = get_atlas(enemies[i].id%4,4);
+
             draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
+            
             if (should_draw_debug_ui) {
                 DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
 
@@ -387,11 +399,19 @@ void UpdateDrawFrame(void)
             switch (player.active_spell) {
             case NO_SPELL: break;
             case MANA_RAY:
+                DrawCircleV(player.ray_anchor, 8, PAL0);
+                DrawCircleV(apprentice.ray_anchor, 8, PAL0);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
+                DrawCircleV(player.ray_anchor, 5, PAL1);
+                DrawCircleV(apprentice.ray_anchor, 5, PAL1);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
                 break;
             case DEATH_RAY:
+                DrawCircleV(player.ray_anchor, 8, PAL3);
+                DrawCircleV(apprentice.ray_anchor, 8, PAL3);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
+                DrawCircleV(player.ray_anchor, 5, PAL4);
+                DrawCircleV(apprentice.ray_anchor, 5, PAL4);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
                 break;            
             }
