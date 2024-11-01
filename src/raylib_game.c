@@ -66,6 +66,9 @@ Enemy *enemies = NULL;
 
 Camera2D camera = {0};
 
+bool touch_active = false;
+Vec2 touch_start = {0};
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -208,6 +211,33 @@ void UpdateDrawFrame(void)
     if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
         input.x += 1;
         player.flip_texture = NO_FLIP;
+    }
+
+    // Touch controls
+
+    if (GetGestureDetected() == GESTURE_TAP) {
+        touch_active = true;
+        touch_start = GetTouchPosition(0);
+    }
+
+    if (touch_active && GetTouchPointCount() > 0) {
+        Vec2 current_touch = GetTouchPosition(0);
+        Vec2 direction = Vector2Subtract(current_touch, touch_start);
+        
+        float min_distance = 10.0f;
+        if (Vector2Length(direction) > min_distance) {
+            input = Vector2Normalize(direction);
+            
+            if (input.x < 0) {
+                player.flip_texture = FLIP_X;
+            } else if (input.x > 0) {
+                player.flip_texture = NO_FLIP;
+            }
+        }
+    }
+
+    if (GetTouchPointCount() == 0) {
+        touch_active = false;
     }
 
     input = Vector2Normalize(input);
