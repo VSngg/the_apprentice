@@ -13,7 +13,7 @@
             "name": "Project Build",
             "cmd": ["${project_path}/build.bat", "build"],
             "working_dir": "${project_path}",
-            "file_regex": "^(..[^(]*)\\((\\d+),?(\\d+)?\\):\\s*(.*)$",
+            "file_regex": "^(.+?)\\((\\d+)\\): error ([^:]+): (.*)$",
             "variants": [
                 {
                     "name": "Run",
