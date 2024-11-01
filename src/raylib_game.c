@@ -108,6 +108,12 @@ int main(void)
         .pos = (Vec2){map_width/2.0f - TILE_SIZE/2 - 30, map_height/2.0f - TILE_SIZE/2 - 30},
         .speed = 150.0f,
         .following_player = false,
+
+        .health = 100.0f,
+        .max_health = 100.0f,
+        .is_invincible = false,
+        .invincibility_timer = 5.0f, 
+
     };
 
     int number_of_enemies = 10;
@@ -215,6 +221,10 @@ void UpdateDrawFrame(void)
     player.invincibility_timer -= dt;
     if (player.invincibility_timer <= 0) player.is_invincible = false;
 
+    apprentice.health = Clamp(apprentice.health, 0.0f, apprentice.max_health);
+    apprentice.invincibility_timer -= dt;
+    if (apprentice.invincibility_timer <= 0) apprentice.is_invincible = false;
+    
     player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
     apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
     F32 spellray_distance = Vector2Distance(player.ray_anchor, apprentice.ray_anchor);
@@ -315,13 +325,20 @@ void UpdateDrawFrame(void)
             enemy->flip_texture = NO_FLIP;
         }
 
-        Rect player_rect = (Rect){player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
-        Rect enemy_rect  = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
+        Rect player_rect     = (Rect){player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
+        Rect apprentice_rect = (Rect){apprentice.pos.x, apprentice.pos.y, TILE_SIZE, TILE_SIZE};
+        Rect enemy_rect      = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
 
         if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
             player.health -= ENEMY_DAMAGE;
             player.is_invincible = true;
             player.invincibility_timer = 0.2f;
+        }
+
+        if (!apprentice.is_invincible && CheckCollisionRecs(apprentice_rect, enemy_rect)) {
+            apprentice.health -= ENEMY_DAMAGE;
+            apprentice.is_invincible = true;
+            apprentice.invincibility_timer = 0.5f;
         }
 
         enemy->health = Clamp(enemy->health, 0.0f, enemy->max_health);
@@ -428,7 +445,7 @@ void UpdateDrawFrame(void)
                 DrawCircleV(player.ray_anchor, 8, PAL3);
                 DrawCircleV(apprentice.ray_anchor, 8, PAL3);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
-                
+
                 DrawCircleV(player.ray_anchor, 5, PAL4);
                 DrawCircleV(apprentice.ray_anchor, 5, PAL4);
                 DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
@@ -448,11 +465,20 @@ void UpdateDrawFrame(void)
             (player.mana/100.0f)*TILE_SIZE, 
             10.0f
         };
+        Rect appr_health_rect = (Rect) {
+            apprentice.pos.x, 
+            apprentice.pos.y + TILE_SIZE + 10, 
+            (apprentice.health/100.0f)*TILE_SIZE, 
+            10.0f
+        };
         DrawRectangleRec(player_health_rect, PAL4);
         DrawRectangleLinesEx(player_health_rect, 2, PAL5);
+
         DrawRectangleRec(player_mana_rect, PAL0);
         DrawRectangleLinesEx(player_mana_rect, 2, PAL5);
 
+        DrawRectangleRec(appr_health_rect, PAL4);
+        DrawRectangleLinesEx(appr_health_rect, 2, PAL5);
 
         EndMode2D();
     EndTextureMode();
