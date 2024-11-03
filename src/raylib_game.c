@@ -334,10 +334,27 @@ void update_gameplay(void) {
     }
 
     // Touch controls
+    Rect follow_icon_dst = (Rect) {20, screenHeight - 20 - 64, 64, 64};
+    Rect no_spell_icon_dst  = (Rect) {screenWidth - 30- 3*64, screenHeight - 20 - 64, 64, 64};
+    Rect mana_ray_icon_dst  = (Rect) {screenWidth - 25- 2*64, screenHeight - 20 - 64, 64, 64};
+    Rect death_ray_icon_dst = (Rect) {screenWidth - 20 - 64, screenHeight - 20 - 64 , 64, 64};
 
     if (GetGestureDetected() == GESTURE_TAP) {
         touch_active = true;
         touch_start = GetTouchPosition(0);
+    }
+
+    if (CheckCollisionPointRec(touch_start, no_spell_icon_dst)) {
+        player.active_spell = NO_SPELL;
+        touch_start = (Vec2) {0};
+    }
+    if (CheckCollisionPointRec(touch_start, mana_ray_icon_dst)) {
+        player.active_spell = MANA_RAY;
+        touch_start = (Vec2) {0};
+    }
+    if (CheckCollisionPointRec(touch_start, death_ray_icon_dst)) {
+        player.active_spell = DEATH_RAY;
+        touch_start = (Vec2) {0};
     }
 
     if (touch_active && GetTouchPointCount() > 0) {
@@ -385,16 +402,6 @@ void update_gameplay(void) {
 
     if (IsKeyPressed(KEY_Q)) {
         player.active_spell = NO_SPELL; 
-
-        // Try casting if enough mana
-        if (player.active_spell != NO_SPELL &&
-            player.mana >= SPELLS[player.active_spell].initial_cost &&
-            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
-            player.is_casting = true;
-            player.mana -= SPELLS[player.active_spell].initial_cost;
-        } else {
-            player.is_casting = false;
-        }
     }
 
     if (IsKeyPressed(KEY_E)) {
@@ -461,6 +468,11 @@ void update_gameplay(void) {
     if (IsKeyPressed(KEY_F)) {
         apprentice.following_player = !apprentice.following_player;
     }
+    if (CheckCollisionPointRec(touch_start, follow_icon_dst)) {
+        apprentice.following_player = !apprentice.following_player;
+        touch_start = (Vec2) {0};
+    }
+
 
     Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
     if (apprentice.following_player) {
