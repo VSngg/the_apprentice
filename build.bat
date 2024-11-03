@@ -61,7 +61,7 @@ echo ---------------------------------
 echo Building and running using cl.exe
 echo ---------------------------------
 
-cl src/raylib_game.c /I"../raylib-5.0_win64_msvc16/include/" /MD /DEBUG /Zi /Od /link /DEBUG /MACHINE:X64 /OUT:"The_Apprentice.exe" "../raylib-5.0_win64_msvc16/lib/raylib.lib" opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
+cl src/raylib_game.c /I"../raylib-5.0_win64_msvc16/include/" /MD /DEBUG /Zi /Od /link /DEBUG /MACHINE:X64 /OUT:"src\The_Apprentice.exe" "../raylib-5.0_win64_msvc16/lib/raylib.lib" opengl32.lib kernel32.lib user32.lib shell32.lib gdi32.lib winmm.lib msvcrt.lib
 if errorlevel 1 (
     echo Build failed
     exit /b 1
@@ -70,4 +70,5 @@ echo --------------------------------------------------------------
 echo Running Game
 echo --------------------------------------------------------------
 
+pushd src
 .\The_Apprentice.exe

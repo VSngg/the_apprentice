@@ -74,4 +74,5 @@ android.*
 # Assets
 src/resources/*
 !src/resources/atlas.png
+!src/resources/vandalorum-folly_of_man.wav
 game.sublime-workspace

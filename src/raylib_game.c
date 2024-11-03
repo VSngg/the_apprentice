@@ -60,6 +60,8 @@ static Texture atlas;
 bool gameplay_paused = false;
 bool should_draw_debug_ui = false;
 
+Music music = {0};
+
 Player player = {0};
 Apprentice apprentice = {0};
 
@@ -75,14 +77,18 @@ Vec2 touch_start = {0};
 //------------------------------------------------------------------------------------
 int main(void)
 {
-#if !defined(_DEBUG)
-    SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messages
-#endif
+// #if !defined(_DEBUG)
+//     SetTraceLogLevel(LOG_NONE);         // Disable raylib trace log messages
+// #endif
 
     // Initialization
     //--------------------------------------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "The Apprentice");
     SetExitKey(0);
+
+    InitAudioDevice();
+    music = LoadMusicStream("resources/vandalorum-folly_of_man.wav");
+    PlayMusicStream(music);
 
     // TODO: Load resources / Initialize variables at this point
     Image atlas_image = {0};
@@ -166,6 +172,7 @@ int main(void)
 
     // De-Initialization
     //--------------------------------------------------------------------------------------
+    UnloadMusicStream(music);
     UnloadRenderTexture(target);
     UnloadTexture(atlas);
 
@@ -173,6 +180,7 @@ int main(void)
 
     // TODO: Unload all loaded resources at this point
 
+    CloseAudioDevice();
     CloseWindow();        // Close window and OpenGL context
     //--------------------------------------------------------------------------------------
 
@@ -189,9 +197,12 @@ void UpdateDrawFrame(void)
     //----------------------------------------------------------------------------------
     // TODO: Update variables / Implement example logic at this point
     //----------------------------------------------------------------------------------
+    UpdateMusicStream(music);
 
     if (IsKeyPressed(KEY_ESCAPE)) {
         gameplay_paused = !gameplay_paused;
+        if (gameplay_paused) PauseMusicStream(music);
+        else ResumeMusicStream(music);
     }
 
     if (!gameplay_paused) update_gameplay();
@@ -324,7 +335,7 @@ void UpdateDrawFrame(void)
 }
 
 void update_gameplay(void) {
-        F32 dt = GetFrameTime();
+    F32 dt = GetFrameTime();
     frames_counter++;
 
     if (IsKeyPressed(KEY_TAB)) {
