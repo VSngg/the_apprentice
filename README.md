@@ -40,7 +40,7 @@ Touch controls:
 
 ### Links
 
- - itch.io Release: $(itch.io Game Page)
+ - itch.io Release: https://vsngg.itch.io/the-apprentice
 
 ### Resources used
 
