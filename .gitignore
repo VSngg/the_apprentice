@@ -72,7 +72,5 @@ compile_commands.json
 android.*
 
 # Assets
-src/resources/*
-!src/resources/atlas.png
-!src/resources/vandalorum-folly_of_man.wav
+src/rsc_no_commit/*
 game.sublime-workspace

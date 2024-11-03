@@ -61,6 +61,7 @@ static bool game_over = false;
 static bool gameplay_paused = false;
 static bool should_draw_debug_ui = false;
 
+static Texture howto;
 static Texture atlas;
 static Texture background_texture;
 
@@ -68,11 +69,15 @@ static int frames_counter = 0;
 
 static Music music = {0};
 static Sound death_sound = {0};
+static Sound new_wave_sound = {0};
 
 static Player player = {0};
 static Apprentice apprentice = {0};
 
 static Enemy *enemies = NULL;
+static int wave_id = 0;
+static bool waiting_for_next_wave = false;
+static F32  wave_timer = 0.0f;
 
 Camera2D camera = {0};
 
@@ -104,6 +109,8 @@ int main(void)
 
     death_sound = LoadSound("resources/death_sound.wav");
     SetSoundVolume(death_sound, 0.5f);
+    new_wave_sound = LoadSound("resources/new_wave.wav");
+    SetSoundVolume(new_wave_sound, 0.5f);
 
     Image atlas_image = {0};
 
@@ -115,6 +122,7 @@ int main(void)
 
     atlas = LoadTextureFromImage(atlas_image);
     background_texture = LoadTexture("resources/Background.png");
+    howto = LoadTexture("resources/howto.png");
 
     init_gameplay();
     camera.target = player.pos;
@@ -143,6 +151,7 @@ int main(void)
     //--------------------------------------------------------------------------------------
     UnloadMusicStream(music);
     UnloadSound(death_sound);
+    UnloadSound(new_wave_sound);
     UnloadRenderTexture(target);
     UnloadTexture(atlas);
     UnloadTexture(background_texture);
@@ -231,10 +240,15 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
         if (current_screen == SCREEN_TITLE) {
-            const char *text = "THE APPRENTICE"; 
+            const char *title_text = "THE APPRENTICE"; 
             F32 fontsize = 40;
-            int font_width = MeasureText(text, fontsize);
-            DrawText(text, screenWidth/2 - font_width/2, screenHeight/2 - fontsize/2, fontsize, PAL2);
+            int font_width = MeasureText(title_text, fontsize);
+            DrawText(title_text, screenWidth/2 - font_width/2, 100 - fontsize/2, fontsize, PAL2);
+            const char *howto_text = "HOW TO PLAY"; 
+            fontsize = 30;
+            font_width = MeasureText(howto_text, fontsize);
+            DrawText(howto_text, screenWidth/2 - font_width/2, 200 - fontsize/2, fontsize, PAL2);
+            DrawTextureEx(howto, (Vec2) {TILE_SIZE, 5*TILE_SIZE}, 0.0f, 3, WHITE);
         }
 
         if (current_screen == SCREEN_GAMEPLAY) {
@@ -283,7 +297,8 @@ void init_gameplay(void) {
         .mana_regen = 1.0f,
     };
 
-    int number_of_enemies = 10;
+    wave_id = 1;
+    int number_of_enemies = 2;
     for (int i = 0; i < number_of_enemies; i++) {
         F32 angle = (2.0f * PI * i) / number_of_enemies;
         F32 radius = 500.0f;
@@ -539,7 +554,7 @@ void update_gameplay(void) {
         Rect enemy_rect      = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
 
         if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
-            player.health -= ENEMY_DAMAGE;
+            player.health -= ENEMY_DAMAGE * (wave_id/2.0f);
             player.is_invincible = true;
             player.invincibility_timer = 0.2f;
         }
@@ -547,7 +562,7 @@ void update_gameplay(void) {
         if (!apprentice.is_invincible && CheckCollisionRecs(apprentice_rect, enemy_rect)) {
             apprentice.health -= ENEMY_DAMAGE;
             apprentice.is_invincible = true;
-            apprentice.invincibility_timer = 0.5f;
+            apprentice.invincibility_timer = 0.3f;
         }
 
         enemy->health = Clamp(enemy->health, 0.0f, enemy->max_health);
@@ -573,6 +588,45 @@ void update_gameplay(void) {
 
     }
 
+    if (arrlen(enemies) == 0 && !waiting_for_next_wave) {
+        waiting_for_next_wave = true;
+        wave_id++;
+    }
+
+    if (waiting_for_next_wave) {
+        wave_timer += dt;
+        if (wave_timer >= 5.0f) {
+            spawn_next_wave(wave_id);
+            waiting_for_next_wave = false;
+            wave_timer = 0.0f;
+        }
+    }
+
+}
+
+void spawn_next_wave(int wave_id) {
+    int number_of_enemies = 2*wave_id;
+    int random_val = GetRandomValue(map_width/10, map_width/4);
+    int random_sign = GetRandomValue(0,1);
+    random_val = random_sign == 0 ? random_val : -random_val;
+
+    for (int i = 0; i < number_of_enemies; i++) {
+        F32 angle = (2.0f * PI * i) / number_of_enemies;
+        F32 radius = 500.0f;
+        Enemy enemy = {
+            .id = i,
+            .alive = true,
+            .pos = (Vec2){
+                (F32)map_width/2  + (F32)random_val + radius * cosf(angle),
+                (F32)map_height/2 + (F32)random_val + radius * sinf(angle)},
+                .speed = TILE_SIZE*1.5f,
+
+                .health = 50.0f + wave_id * 10.0f,
+                .max_health = 50.0f + wave_id * 10.0f,
+            };
+        arrput(enemies, enemy);
+    }
+    PlaySound(new_wave_sound);
 }
 
 void draw_gameplay(void) {
@@ -582,15 +636,26 @@ void draw_gameplay(void) {
         // DrawRectangleLinesEx((Rect){0, 0, map_width, map_height}, TILE_SIZE, PAL5);
         DrawTextureEx(background_texture, (Vec2){0, 0}, 0.0f, TILE_UPSCALE_FACTOR, WHITE);
 
-        Rect src = get_atlas(0,0);
-        draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
+        Rect player_src = {0};
+        if (!player.is_invincible){
+            player_src = get_atlas(0,0);  
+        } else {
+            player_src = get_atlas(1,0);
+        }
+        draw_sprite(atlas, player_src, player.pos, player.flip_texture, WHITE);
 
-        src = get_atlas(0,1);
-        draw_sprite(atlas, src, apprentice.pos, apprentice.flip_texture, WHITE);
+        Rect apprentice_src = {0};
+        if (!apprentice.is_invincible) {
+            apprentice_src = get_atlas(0,1);
+        } else {
+            apprentice_src = get_atlas(1,1);
+        }
+        draw_sprite(atlas, apprentice_src, apprentice.pos, apprentice.flip_texture, WHITE);
 
+        Rect enemy_src = {0};
         for (int i=0; i < arrlen(enemies); i++) {
-            src = get_atlas(enemies[i].id%4,2);
-            draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
+            enemy_src = get_atlas(enemies[i].id%4,2);
+            draw_sprite(atlas, enemy_src, enemies[i].pos, enemies[i].flip_texture, WHITE);
         }
 
         if (player.is_casting) {
@@ -730,6 +795,20 @@ void draw_ui(void) {
     Rect bars = (Rect) {0, 2, TILE_SIZE*5, TILE_SIZE*2.7};
     DrawRectangleRec(bars, PAL7);
     DrawRectangleLinesEx(bars, 3, PAL5);
+
+    // Rect wave_rect = (Rect) {}
+    const char *wave_text = TextFormat("Wave %i", wave_id); 
+    int wave_text_width = MeasureText(wave_text, 20);
+    Rect wave_rect = (Rect) {
+        screenWidth - wave_text_width - 40,
+        0,
+        wave_text_width + 40,
+        20 + 40,
+    };
+    DrawRectangleRec(wave_rect, PAL7);
+    DrawRectangleLinesEx(wave_rect, 3, PAL5);
+    DrawText(wave_text, screenWidth - wave_text_width - 20, 20, 20, PAL5);
+
 
     DrawText("MAGE", 20, 5, 20, PAL5);
     DrawRectangleRec(player_health_rect, PAL4);

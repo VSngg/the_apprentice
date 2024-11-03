@@ -151,5 +151,6 @@ void draw_ui(void);
 void draw_debug_ui(void);
 Rect get_atlas(int row, int col);
 void draw_sprite(Texture2D texture, Rectangle src, Vector2 position, Flip_Texture flip, Color tint);
+void spawn_next_wave(int wave_id);
 
 #endif // RAYLIB_GAME_H
