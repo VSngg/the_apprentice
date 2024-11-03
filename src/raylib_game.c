@@ -239,15 +239,7 @@ void UpdateDrawFrame(void)
 
         // TODO: Draw everything that requires to be drawn at this point, maybe UI?
         if (current_screen == SCREEN_TITLE) {
-            const char *title_text = "THE APPRENTICE"; 
-            F32 fontsize = 40;
-            int font_width = MeasureText(title_text, fontsize);
-            DrawText(title_text, screenWidth/2 - font_width/2, 100 - fontsize/2, fontsize, PAL2);
-            const char *howto_text = "HOW TO PLAY"; 
-            fontsize = 30;
-            font_width = MeasureText(howto_text, fontsize);
-            DrawText(howto_text, screenWidth/2 - font_width/2, 200 - fontsize/2, fontsize, PAL2);
-            DrawTextureEx(howto, (Vec2) {TILE_SIZE, 5*TILE_SIZE}, 0.0f, 3, WHITE);
+            DrawTextureEx(howto, (Vec2) {TILE_SIZE, 0}, 0.0f, 3, WHITE);
         }
 
         if (current_screen == SCREEN_GAMEPLAY) {
