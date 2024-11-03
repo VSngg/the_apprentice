@@ -30,7 +30,9 @@ Touch controls:
 
 ### Screenshots
 
-_TODO: Show your game to the world, animated GIFs recommended!._
+![The Apprentice](screenshots/screenshot000.png "The Apprentice")
+![The Apprentice](screenshots/screenshot001.png "The Apprentice")
+![The Apprentice](screenshots/screenshot002.png "The Apprentice")
 
 ### Developers
 
