@@ -17,8 +17,7 @@
 // Types and Structures Definition
 //----------------------------------------------------------------------------------
 typedef enum { 
-    SCREEN_LOGO = 0, 
-    SCREEN_TITLE, 
+    SCREEN_TITLE = 0, 
     SCREEN_GAMEPLAY, 
     SCREEN_ENDING
 } GameScreen;
@@ -145,7 +144,9 @@ const Spell SPELLS[] = {
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
+void init_gameplay(void);
 void update_gameplay(void);
+void draw_gameplay(void);
 void draw_ui(void);
 void draw_debug_ui(void);
 Rect get_atlas(int row, int col);

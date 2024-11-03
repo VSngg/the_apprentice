@@ -38,6 +38,7 @@ _TODO: Show your game to the world, animated GIFs recommended!._
  - Palette: https://lospec.com/palette-list/dead-weight-8
  - Art based on: https://kenney.nl/assets/tiny-dungeon
  - stb_ds.h: https://github.com/nothings/stb/blob/master/stb_ds.h
+ - "Folly of Man" by Vandalorum licensed CC-BY 4.0, CC-BY 3.0: https://opengameart.org/content/dark-dungeon-music
 
 ### License
 

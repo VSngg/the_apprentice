@@ -39,6 +39,7 @@
 #include "core.h"
 #include "raylib_game.h"
 #include "atlas.h"
+#include "death.h"
 
 #define STB_DS_IMPLEMENTATION
 #include "stb_ds.h"
@@ -55,22 +56,28 @@ static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 // TODO: Define global variables here, recommended to make them static
 
-int frames_counter = 0;
+GameScreen current_screen;
+static bool game_over = false;
+static bool gameplay_paused = false;
+static bool should_draw_debug_ui = false;
+
 static Texture atlas;
-bool gameplay_paused = false;
-bool should_draw_debug_ui = false;
+static Texture background_texture;
 
-Music music = {0};
+static int frames_counter = 0;
 
-Player player = {0};
-Apprentice apprentice = {0};
+static Music music = {0};
+static Sound death_sound = {0};
 
-Enemy *enemies = NULL;
+static Player player = {0};
+static Apprentice apprentice = {0};
+
+static Enemy *enemies = NULL;
 
 Camera2D camera = {0};
 
-bool touch_active = false;
-Vec2 touch_start = {0};
+static bool touch_active = false;
+static Vec2 touch_start = {0};
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -87,10 +94,17 @@ int main(void)
     SetExitKey(0);
 
     InitAudioDevice();
-    music = LoadMusicStream("resources/vandalorum-folly_of_man.wav");
-    PlayMusicStream(music);
 
     // TODO: Load resources / Initialize variables at this point
+    current_screen = SCREEN_TITLE;
+
+    music = LoadMusicStream("resources/vandalorum-folly_of_man.wav");
+    PlayMusicStream(music);
+    SetMusicVolume(music, 0.1f);
+
+    death_sound = LoadSound("resources/death_sound.wav");
+    SetSoundVolume(death_sound, 0.5f);
+
     Image atlas_image = {0};
 
     atlas_image.format = ATLAS_FORMAT;
@@ -100,7 +114,146 @@ int main(void)
     atlas_image.data = ATLAS_DATA;
 
     atlas = LoadTextureFromImage(atlas_image);
+    background_texture = LoadTexture("resources/Background.png");
 
+    init_gameplay();
+    camera.target = player.pos;
+    camera.offset = (Vec2) {screenWidth/2 - TILE_SIZE/2, screenHeight/2 - TILE_SIZE/2};
+    camera.zoom = 1.0f;
+
+    // Render texture to draw full screen, enables screen scaling
+    // NOTE: If screen is scaled, mouse input should be scaled proportionally
+    target = LoadRenderTexture(screenWidth, screenHeight);
+    SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
+
+#if defined(PLATFORM_WEB)
+    emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
+#else
+    SetTargetFPS(60);     // Set our game frames-per-second
+    //--------------------------------------------------------------------------------------
+
+    // Main game loop
+    while (!WindowShouldClose())    // Detect window close button
+    {
+        UpdateDrawFrame();
+    }
+#endif
+
+    // De-Initialization
+    //--------------------------------------------------------------------------------------
+    UnloadMusicStream(music);
+    UnloadSound(death_sound);
+    UnloadRenderTexture(target);
+    UnloadTexture(atlas);
+    UnloadTexture(background_texture);
+
+    arrfree(enemies);
+
+    // TODO: Unload all loaded resources at this point
+
+    CloseAudioDevice();
+    CloseWindow();        // Close window and OpenGL context
+    //--------------------------------------------------------------------------------------
+
+    return 0;
+}
+
+//--------------------------------------------------------------------------------------------
+// Module functions definition
+//--------------------------------------------------------------------------------------------
+// Update and draw frame
+void UpdateDrawFrame(void)
+{
+    // Update
+    //----------------------------------------------------------------------------------
+    // TODO: Update variables / Implement example logic at this point
+    //----------------------------------------------------------------------------------
+    UpdateMusicStream(music);
+
+    switch (current_screen) {
+    case SCREEN_TITLE: 
+        {
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsGestureDetected(GESTURE_TAP)) {
+                current_screen = SCREEN_GAMEPLAY;
+            }
+
+        } break;
+
+    case SCREEN_GAMEPLAY:
+        {
+            if (!game_over) {
+                if (IsKeyPressed(KEY_ESCAPE)) {
+                    gameplay_paused = !gameplay_paused;
+                    if (gameplay_paused) PauseMusicStream(music);
+                    else ResumeMusicStream(music);
+                }
+
+                if (!gameplay_paused) update_gameplay();
+            } else {
+                arrsetlen(enemies, 0);
+                current_screen = SCREEN_ENDING;
+            }
+        } break;
+
+    case SCREEN_ENDING:
+        {
+            if (IsKeyPressed(KEY_ENTER) || IsKeyPressed(KEY_SPACE) || IsGestureDetected(GESTURE_TAP)) {
+                init_gameplay();
+                game_over = false;
+                current_screen = SCREEN_TITLE;
+            }
+
+        } break;
+    }
+
+    // Draw
+    //----------------------------------------------------------------------------------
+    // Render game screen to a texture,
+    // it could be useful for scaling or further shader postprocessing
+    BeginTextureMode(target);
+        ClearBackground(BLANK);
+        if (current_screen == SCREEN_GAMEPLAY) draw_gameplay();
+    EndTextureMode();
+
+    // Render to screen (main framebuffer)
+    BeginDrawing();
+        ClearBackground(PAL5);
+
+        // Draw render texture to screen, scaled if required
+        DrawTexturePro(target.texture,
+            (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height },
+            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height  },
+            (Vector2){ 0, 0 },
+            0.0f,
+            WHITE);
+        // DrawTextureEx(background_texture, (Vec2){0, 0}, 0.0f, TILE_UPSCALE_FACTOR, WHITE);
+
+
+        // TODO: Draw everything that requires to be drawn at this point, maybe UI?
+        if (current_screen == SCREEN_TITLE) {
+            const char *text = "THE APPRENTICE"; 
+            F32 fontsize = 40;
+            int font_width = MeasureText(text, fontsize);
+            DrawText(text, screenWidth/2 - font_width/2, screenHeight/2 - fontsize/2, fontsize, PAL2);
+        }
+
+        if (current_screen == SCREEN_GAMEPLAY) {
+            draw_ui();
+            if (should_draw_debug_ui) draw_debug_ui();
+        }
+
+        if (current_screen == SCREEN_ENDING) {
+            const char *text = "GAME OVER"; 
+            F32 fontsize = 40;
+            int font_width = MeasureText(text, fontsize);
+            DrawText(text, screenWidth/2 - font_width/2, screenHeight/2 - fontsize/2, fontsize, PAL2);
+        }
+
+    EndDrawing();
+    //----------------------------------------------------------------------------------
+}
+
+void init_gameplay(void) {
     player = (Player){
         .pos = (Vec2){map_height/2.0f - TILE_SIZE/2, map_width/2.0f - TILE_SIZE/2},
         .speed = TILE_SIZE*3,
@@ -148,194 +301,11 @@ int main(void)
         arrput(enemies, enemy);
     }
 
-    camera.target = player.pos;
-    camera.offset = (Vec2) {screenWidth/2 - TILE_SIZE/2, screenHeight/2 - TILE_SIZE/2};
-    camera.zoom = 1.0f;
-
-    // Render texture to draw full screen, enables screen scaling
-    // NOTE: If screen is scaled, mouse input should be scaled proportionally
-    target = LoadRenderTexture(screenWidth, screenHeight);
-    SetTextureFilter(target.texture, TEXTURE_FILTER_BILINEAR);
-
-#if defined(PLATFORM_WEB)
-    emscripten_set_main_loop(UpdateDrawFrame, 60, 1);
-#else
-    SetTargetFPS(60);     // Set our game frames-per-second
-    //--------------------------------------------------------------------------------------
-
-    // Main game loop
-    while (!WindowShouldClose())    // Detect window close button
-    {
-        UpdateDrawFrame();
-    }
-#endif
-
-    // De-Initialization
-    //--------------------------------------------------------------------------------------
-    UnloadMusicStream(music);
-    UnloadRenderTexture(target);
-    UnloadTexture(atlas);
-
-    arrfree(enemies);
-
-    // TODO: Unload all loaded resources at this point
-
-    CloseAudioDevice();
-    CloseWindow();        // Close window and OpenGL context
-    //--------------------------------------------------------------------------------------
-
-    return 0;
-}
-
-//--------------------------------------------------------------------------------------------
-// Module functions definition
-//--------------------------------------------------------------------------------------------
-// Update and draw frame
-void UpdateDrawFrame(void)
-{
-    // Update
-    //----------------------------------------------------------------------------------
-    // TODO: Update variables / Implement example logic at this point
-    //----------------------------------------------------------------------------------
-    UpdateMusicStream(music);
-
-    if (IsKeyPressed(KEY_ESCAPE)) {
-        gameplay_paused = !gameplay_paused;
-        if (gameplay_paused) PauseMusicStream(music);
-        else ResumeMusicStream(music);
-    }
-
-    if (!gameplay_paused) update_gameplay();
-
-    // Draw
-    //----------------------------------------------------------------------------------
-    // Render game screen to a texture,
-    // it could be useful for scaling or further shader postprocessing
-    BeginTextureMode(target);
-        ClearBackground(PAL2);
-        BeginMode2D(camera);
-
-        // TODO: Draw your game screen here
-        DrawRectangleLinesEx((Rect){0, 0, map_width, map_height}, TILE_SIZE, PAL5);
-
-        Rect src = get_atlas(0,0);
-        draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
-
-        src = get_atlas(0,2);
-        draw_sprite(atlas, src, apprentice.pos, apprentice.flip_texture, WHITE);
-
-        for (int i=0; i < arrlen(enemies); i++) {
-            src = get_atlas(enemies[i].id%4,4);
-
-            draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
-
-            if (should_draw_debug_ui) {
-                DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
-
-                Rect enemy_health_rect = (Rect) {
-                    enemies[i].pos.x, 
-                    enemies[i].pos.y + TILE_SIZE + 10, 
-                    (enemies[i].health/100.0f)*TILE_SIZE, 
-                    10.0f
-                };
-                DrawRectangleRec(enemy_health_rect, PAL4);
-                DrawRectangleLinesEx(enemy_health_rect, 2, PAL5);
-            }
-
-        }
-
-        if (player.is_casting) {
-            F32 ad;
-            switch (player.active_spell) {
-            case NO_SPELL: break;
-            case MANA_RAY:
-                ad = SPELLS[MANA_RAY].activation_distance;
-                DrawRing(apprentice.ray_anchor, ad-2, ad+2, 0, 360, 48, PAL0);
-
-                DrawCircleV(player.ray_anchor, 8, PAL0);
-                DrawCircleV(apprentice.ray_anchor, 8, PAL0);
-                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
-
-                DrawCircleV(player.ray_anchor, 5, PAL1);
-                DrawCircleV(apprentice.ray_anchor, 5, PAL1);
-                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
-                break;
-            case DEATH_RAY:
-                ad = SPELLS[MANA_RAY].activation_distance;
-                DrawRing(apprentice.ray_anchor, ad-2, ad+2, 0, 360, 48, PAL3);
-
-                DrawCircleV(player.ray_anchor, 8, PAL3);
-                DrawCircleV(apprentice.ray_anchor, 8, PAL3);
-                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
-
-                DrawCircleV(player.ray_anchor, 5, PAL4);
-                DrawCircleV(apprentice.ray_anchor, 5, PAL4);
-                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
-                break;            
-            }
-        }
-
-        Rect player_health_rect = (Rect) {
-            player.pos.x, 
-            player.pos.y + TILE_SIZE + 8, 
-            (player.health/100.0f)*TILE_SIZE, 
-            8.0f
-        };
-        Rect player_mana_rect = (Rect) {
-            player.pos.x, 
-            player.pos.y + TILE_SIZE + 16, 
-            (player.mana/100.0f)*TILE_SIZE, 
-            8.0f
-        };
-        Rect appr_health_rect = (Rect) {
-            apprentice.pos.x, 
-            apprentice.pos.y + TILE_SIZE + 8, 
-            (apprentice.health/100.0f)*TILE_SIZE, 
-            8.0f
-        };
-        Rect appr_mana_rect = (Rect) {
-            apprentice.pos.x, 
-            apprentice.pos.y + TILE_SIZE + 16, 
-            (apprentice.mana/100.0f)*TILE_SIZE, 
-            8.0f
-        };
-        DrawRectangleRec(player_health_rect, PAL4);
-        DrawRectangleLinesEx(player_health_rect, 2, PAL5);
-
-        DrawRectangleRec(player_mana_rect, PAL0);
-        DrawRectangleLinesEx(player_mana_rect, 2, PAL5);
-
-        DrawRectangleRec(appr_health_rect, PAL4);
-        DrawRectangleLinesEx(appr_health_rect, 2, PAL5);
-        DrawRectangleRec(appr_mana_rect, PAL0);
-        DrawRectangleLinesEx(appr_mana_rect, 2, PAL5);
-
-        EndMode2D();
-    EndTextureMode();
-
-    // Render to screen (main framebuffer)
-    BeginDrawing();
-        ClearBackground(PAL2);
-
-        // Draw render texture to screen, scaled if required
-        DrawTexturePro(target.texture,
-            (Rectangle){ 0, 0, (float)target.texture.width, -(float)target.texture.height },
-            (Rectangle){ 0, 0, (float)target.texture.width, (float)target.texture.height  },
-            (Vector2){ 0, 0 },
-            0.0f,
-            WHITE);
-
-        // TODO: Draw everything that requires to be drawn at this point, maybe UI?
-        if (should_draw_debug_ui) draw_debug_ui();
-
-        draw_ui();
-
-    EndDrawing();
-    //----------------------------------------------------------------------------------
 }
 
 void update_gameplay(void) {
     F32 dt = GetFrameTime();
+    frames_counter = 0;
     frames_counter++;
 
     if (IsKeyPressed(KEY_TAB)) {
@@ -404,6 +374,10 @@ void update_gameplay(void) {
     apprentice.health = Clamp(apprentice.health, 0.0f, apprentice.max_health);
     apprentice.invincibility_timer -= dt;
     if (apprentice.invincibility_timer <= 0) apprentice.is_invincible = false;
+
+    if (player.health <= 0 || apprentice.health <= 0) {
+        game_over = true;
+    }
     
     player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
     apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
@@ -423,10 +397,10 @@ void update_gameplay(void) {
         }
     }
 
-    if (IsKeyPressed(KEY_ONE)) {
+    if (IsKeyPressed(KEY_E)) {
         player.active_spell = MANA_RAY;
     }
-    if (IsKeyPressed(KEY_TWO)) {
+    if (IsKeyPressed(KEY_R)) {
         player.active_spell = DEATH_RAY;
     }
 
@@ -451,6 +425,7 @@ void update_gameplay(void) {
                 player.mana -= mana_cost;
             } else {
                 player.is_casting = false;
+                player.active_spell = NO_SPELL;
             }
         }
     }
@@ -477,12 +452,13 @@ void update_gameplay(void) {
     }
     if (apprentice.mana <= 0.0f) {
         player.is_casting = false;
+        player.active_spell == NO_SPELL;
     }
 
     apprentice.mana += apprentice.mana_regen * dt;
     apprentice.mana = Clamp(apprentice.mana, 0.0f, apprentice.max_mana);
 
-    if (IsKeyPressed(KEY_E)) {
+    if (IsKeyPressed(KEY_F)) {
         apprentice.following_player = !apprentice.following_player;
     }
 
@@ -546,8 +522,8 @@ void update_gameplay(void) {
             enemy->flip_texture = NO_FLIP;
         }
 
-        Rect player_rect     = (Rect){player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
-        Rect apprentice_rect = (Rect){apprentice.pos.x, apprentice.pos.y, TILE_SIZE, TILE_SIZE};
+        Rect player_rect     = (Rect){player.pos.x - 2, player.pos.y - 2, TILE_SIZE - 2, TILE_SIZE - 2};
+        Rect apprentice_rect = (Rect){apprentice.pos.x - 2, apprentice.pos.y - 2, TILE_SIZE - 2, TILE_SIZE - 2};
         Rect enemy_rect      = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
 
         if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
@@ -567,6 +543,7 @@ void update_gameplay(void) {
 
         if (enemy->health == 0.0f) {
             enemy->alive = false;
+            PlaySound(death_sound);
         }
 
         if (player.active_spell == DEATH_RAY && player.is_casting) {
@@ -583,6 +560,98 @@ void update_gameplay(void) {
         }
 
     }
+
+}
+
+void draw_gameplay(void) {
+    BeginMode2D(camera);
+
+        // TODO: Draw your game screen here
+        // DrawRectangleLinesEx((Rect){0, 0, map_width, map_height}, TILE_SIZE, PAL5);
+        DrawTextureEx(background_texture, (Vec2){0, 0}, 0.0f, TILE_UPSCALE_FACTOR, WHITE);
+
+        Rect src = get_atlas(0,0);
+        draw_sprite(atlas, src, player.pos, player.flip_texture, WHITE);
+
+        src = get_atlas(0,1);
+        draw_sprite(atlas, src, apprentice.pos, apprentice.flip_texture, WHITE);
+
+        for (int i=0; i < arrlen(enemies); i++) {
+            src = get_atlas(enemies[i].id%4,2);
+            draw_sprite(atlas, src, enemies[i].pos, enemies[i].flip_texture, WHITE);
+        }
+
+        if (player.is_casting) {
+            F32 ad;
+            switch (player.active_spell) {
+            case NO_SPELL: break;
+            case MANA_RAY:
+                ad = SPELLS[MANA_RAY].activation_distance;
+                DrawRing(apprentice.ray_anchor, ad-2, ad+2, 0, 360, 48, PAL0);
+
+                DrawCircleV(player.ray_anchor, 8, PAL0);
+                DrawCircleV(apprentice.ray_anchor, 8, PAL0);
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL0);
+
+                DrawCircleV(player.ray_anchor, 5, PAL1);
+                DrawCircleV(apprentice.ray_anchor, 5, PAL1);
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL1);
+                break;
+            case DEATH_RAY:
+                ad = SPELLS[MANA_RAY].activation_distance;
+                DrawRing(apprentice.ray_anchor, ad-2, ad+2, 0, 360, 48, PAL3);
+
+                DrawCircleV(player.ray_anchor, 8, PAL3);
+                DrawCircleV(apprentice.ray_anchor, 8, PAL3);
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 16, PAL3);
+
+                DrawCircleV(player.ray_anchor, 5, PAL4);
+                DrawCircleV(apprentice.ray_anchor, 5, PAL4);
+                DrawLineEx(player.ray_anchor, apprentice.ray_anchor, 10, PAL4);
+                break;            
+            }
+        }
+
+        Rect player_health_rect = (Rect) {
+        player.pos.x, 
+        player.pos.y + TILE_SIZE + 8, 
+        (player.health/100.0f)*TILE_SIZE, 
+        8.0f
+        };
+        Rect player_mana_rect = (Rect) {
+        player.pos.x, 
+        player.pos.y + TILE_SIZE + 16, 
+        (player.mana/100.0f)*TILE_SIZE, 
+        8.0f
+        };
+        Rect appr_health_rect = (Rect) {
+        apprentice.pos.x, 
+        apprentice.pos.y + TILE_SIZE + 8, 
+        (apprentice.health/100.0f)*TILE_SIZE, 
+        8.0f
+        };
+        Rect appr_mana_rect = (Rect) {
+        apprentice.pos.x, 
+        apprentice.pos.y + TILE_SIZE + 16, 
+        (apprentice.mana/100.0f)*TILE_SIZE, 
+        8.0f
+        };
+        DrawRectangleRec(player_health_rect, PAL4);
+        DrawRectangleLinesEx(player_health_rect, 2, PAL5);
+
+        DrawRectangleRec(player_mana_rect, PAL0);
+        DrawRectangleLinesEx(player_mana_rect, 2, PAL5);
+
+        DrawRectangleRec(appr_health_rect, PAL4);
+        DrawRectangleLinesEx(appr_health_rect, 2, PAL5);
+        DrawRectangleRec(appr_mana_rect, PAL0);
+        DrawRectangleLinesEx(appr_mana_rect, 2, PAL5);
+
+        if (should_draw_debug_ui) {
+            DrawRectangleLines(player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE, PAL0);
+        }
+
+    EndMode2D();
 }
 
 void draw_ui(void) {
@@ -590,56 +659,72 @@ void draw_ui(void) {
     if (apprentice.following_player) {
         follow_icon = get_atlas(4,9);
     }
-    draw_sprite(atlas, follow_icon, (Vec2){screenWidth - 150, screenHeight - 80}, NO_FLIP, WHITE);
+    F32 follow_icon_size = 64;
+    Rect follow_icon_dst = (Rect) {20, screenHeight - 20 - follow_icon_size, follow_icon_size, follow_icon_size};
+    DrawTexturePro(atlas, follow_icon, follow_icon_dst, (Vec2){0, 0}, 0.0f, WHITE);
 
-    Rect spell_icon_rect = {0};
+    Rect no_spell_icon_rect  = get_atlas(0,9);
+    Rect mana_ray_icon_rect  = get_atlas(1,9);
+    Rect death_ray_icon_rect = get_atlas(2,9);
+    Rect spell_selected_rect = get_atlas(5,9);
+
+    Rect no_spell_icon_dst  = (Rect) {screenWidth - 30- 3*64, screenHeight - 20 - 64, 64, 64};
+    Rect mana_ray_icon_dst  = (Rect) {screenWidth - 25- 2*64, screenHeight - 20 - 64, 64, 64};
+    Rect death_ray_icon_dst = (Rect) {screenWidth - 20 - 64, screenHeight - 20 - 64 , 64, 64};
+    Rect spell_selected_dst;
+
     switch (player.active_spell) {
     case NO_SPELL: 
-        spell_icon_rect = get_atlas(0,9);
+        spell_selected_dst = (Rect) {screenWidth - 30 - 3*64, screenHeight - 20 - 2*64, 64, 64};
         break;
     case MANA_RAY:
-        spell_icon_rect = get_atlas(1,9);
+        spell_selected_dst = (Rect) {screenWidth - 25 - 2*64, screenHeight - 20 - 2*64, 64, 64};
         break;
     case DEATH_RAY:
-        spell_icon_rect = get_atlas(2,9);
+        spell_selected_dst = (Rect) {screenWidth - 20 - 64, screenHeight - 20 - 2*64, 64, 64};
         break;
     }
 
+    DrawTexturePro(atlas, no_spell_icon_rect, no_spell_icon_dst, (Vec2){0, 0}, 0.0f, WHITE);
+    DrawTexturePro(atlas, mana_ray_icon_rect, mana_ray_icon_dst, (Vec2){0, 0}, 0.0f, WHITE);
+    DrawTexturePro(atlas, death_ray_icon_rect, death_ray_icon_dst, (Vec2){0, 0}, 0.0f, WHITE);
+    DrawTexturePro(atlas, spell_selected_rect, spell_selected_dst, (Vec2){0, 0}, 0.0f, WHITE);
+
     Rect player_health_rect = (Rect) {
         20, 
-        screenHeight - 100, 
+        24, 
         (player.health/100.0f)*200.0f, 
         20.0f
     };
     Rect player_mana_rect = (Rect) {
         20, 
-        screenHeight - 82, 
+        42, 
         (player.mana/100.0f)*200.0f, 
         20.0f
     };
     Rect apprentice_health_rect = (Rect) {
         20, 
-        screenHeight - 42, 
+        80, 
         (apprentice.health/100.0f)*200.0f, 
         20.0f
     };
     Rect apprentice_mana_rect = (Rect) {
         20, 
-        screenHeight - 22, 
+        100, 
         (apprentice.mana/100.0f)*200.0f, 
         20.0f
     };
 
-    draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
+    Rect bars = (Rect) {0, 2, TILE_SIZE*5, TILE_SIZE*2.7};
+    DrawRectangleRec(bars, PAL7);
+    DrawRectangleLinesEx(bars, 3, PAL5);
 
-    DrawRectangle(0, screenHeight-130, TILE_SIZE*5, TILE_SIZE*3, PAL3);
-
-    DrawText("MAGE", 20, screenHeight-120, 20, PAL5);
+    DrawText("MAGE", 20, 5, 20, PAL5);
     DrawRectangleRec(player_health_rect, PAL4);
     DrawRectangleLinesEx(player_health_rect, 2, PAL5);
     DrawRectangleRec(player_mana_rect, PAL0);
     DrawRectangleLinesEx(player_mana_rect, 2, PAL5);
-    DrawText("APPRENTICE", 20, screenHeight-60, 20, PAL5);
+    DrawText("APPRENTICE", 20, 62, 20, PAL5);
     DrawRectangleRec(apprentice_health_rect, PAL4);
     DrawRectangleLinesEx(apprentice_health_rect, 2, PAL5);
     DrawRectangleRec(apprentice_mana_rect, PAL0);
@@ -649,14 +734,28 @@ void draw_ui(void) {
     if (gameplay_paused) {
         F32 fontsize = 40;
         const char* text = "GAME PAUSED";
-        DrawRectangle(screenWidth/2 - MeasureText(text, fontsize)/2, screenHeight/2 - fontsize/2, MeasureText(text,fontsize), fontsize, PAL1);
+        DrawRectangle(screenWidth/2 - MeasureText(text, fontsize)/2 -TILE_SIZE/2, screenHeight/2 - fontsize/2, MeasureText(text,fontsize) + TILE_SIZE, fontsize, PAL7);
         DrawText(text, screenWidth/2 - MeasureText(text, fontsize)/2, screenHeight/2 - fontsize/2, fontsize, PAL5);
     }
 
 }
 
 void draw_debug_ui(void) {
-    DrawTextureEx(atlas, (Vec2){16, 64}, 0, 3, WHITE);
+    DrawTextureEx(atlas, (Vec2){16, 64}, 0, 2, WHITE);
+
+    // if (should_draw_debug_ui) {
+    //     DrawLineV(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemies[i].pos), PAL4);
+
+    //     Rect enemy_health_rect = (Rect) {
+    //         enemies[i].pos.x, 
+    //         enemies[i].pos.y + TILE_SIZE + 10, 
+    //         (enemies[i].health/100.0f)*TILE_SIZE, 
+    //         10.0f
+    //     };
+    //     DrawRectangleRec(enemy_health_rect, PAL4);
+    //     DrawRectangleLinesEx(enemy_health_rect, 2, PAL5);
+    // }
+
 
     for (I32 i = 0; i < ARRAY_LEN(Color_Palette); i++ ) {
         Vec2 pos = {16.0f + i*32, 32.0f};
