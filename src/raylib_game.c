@@ -57,6 +57,7 @@ static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 int frames_counter = 0;
 static Texture atlas;
+bool gameplay_paused = false;
 bool should_draw_debug_ui = false;
 
 Player player = {0};
@@ -81,6 +82,7 @@ int main(void)
     // Initialization
     //--------------------------------------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "The Apprentice");
+    SetExitKey(0);
 
     // TODO: Load resources / Initialize variables at this point
     Image atlas_image = {0};
@@ -117,7 +119,7 @@ int main(void)
         .is_invincible = false,
         .invincibility_timer = 5.0f, 
 
-        .mana = 100.0f,
+        .mana = 0.0f,
         .max_mana = 100.0f,
         .mana_regen = 1.0f,
     };
@@ -188,245 +190,11 @@ void UpdateDrawFrame(void)
     // TODO: Update variables / Implement example logic at this point
     //----------------------------------------------------------------------------------
 
-    F32 dt = GetFrameTime();
-    frames_counter++;
-
-    if (IsKeyPressed(KEY_TAB)) {
-        const char* text = should_draw_debug_ui ? "Hiding atlas" : "Showing atlas";
-        TraceLog(LOG_INFO, text);
-        should_draw_debug_ui = !should_draw_debug_ui;
+    if (IsKeyPressed(KEY_ESCAPE)) {
+        gameplay_paused = !gameplay_paused;
     }
 
-    // PLAYER
-
-    Vec2 input = {0};
-
-    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
-        input.y += 1;
-    }
-    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
-        input.y -= 1;
-    }
-    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
-        input.x -= 1;
-        player.flip_texture = FLIP_X;
-    }
-    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
-        input.x += 1;
-        player.flip_texture = NO_FLIP;
-    }
-
-    // Touch controls
-
-    if (GetGestureDetected() == GESTURE_TAP) {
-        touch_active = true;
-        touch_start = GetTouchPosition(0);
-    }
-
-    if (touch_active && GetTouchPointCount() > 0) {
-        Vec2 current_touch = GetTouchPosition(0);
-        Vec2 direction = Vector2Subtract(current_touch, touch_start);
-        
-        float min_distance = 10.0f;
-        if (Vector2Length(direction) > min_distance) {
-            input = Vector2Normalize(direction);
-            
-            if (input.x < 0) {
-                player.flip_texture = FLIP_X;
-            } else if (input.x > 0) {
-                player.flip_texture = NO_FLIP;
-            }
-        }
-    }
-
-    if (GetTouchPointCount() == 0) {
-        touch_active = false;
-    }
-
-    input = Vector2Normalize(input);
-
-    player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
-    player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){map_width, map_height});
-
-    camera.target = player.pos;
-
-    player.health = Clamp(player.health, 0.0f, player.max_health);
-    player.invincibility_timer -= dt;
-    if (player.invincibility_timer <= 0) player.is_invincible = false;
-
-    apprentice.health = Clamp(apprentice.health, 0.0f, apprentice.max_health);
-    apprentice.invincibility_timer -= dt;
-    if (apprentice.invincibility_timer <= 0) apprentice.is_invincible = false;
-    
-    player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
-    apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
-    F32 spellray_distance = Vector2Distance(player.ray_anchor, apprentice.ray_anchor);
-
-    if (IsKeyPressed(KEY_Q)) {
-        player.active_spell = NO_SPELL; 
-
-        // Try casting if enough mana
-        if (player.active_spell != NO_SPELL &&
-            player.mana >= SPELLS[player.active_spell].initial_cost &&
-            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
-            player.is_casting = true;
-            player.mana -= SPELLS[player.active_spell].initial_cost;
-        } else {
-            player.is_casting = false;
-        }
-    }
-
-    if (IsKeyPressed(KEY_ONE)) {
-        player.active_spell = MANA_RAY;
-    }
-    if (IsKeyPressed(KEY_TWO)) {
-        player.active_spell = DEATH_RAY;
-    }
-
-
-    if (player.active_spell != NO_SPELL) {
-        // Initial cast
-        if (!player.is_casting && 
-            player.mana >= SPELLS[player.active_spell].initial_cost &&
-            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
-            player.is_casting = true;
-            player.mana -= SPELLS[player.active_spell].initial_cost;
-        }
-
-        // Continue cast
-        if (player.is_casting) {
-            if (spellray_distance >= SPELLS[player.active_spell].activation_distance) {
-                player.is_casting = false;
-            }
-
-            F32 mana_cost = SPELLS[player.active_spell].cost_per_second * dt;
-
-            if (player.mana >= mana_cost) {
-                player.mana -= mana_cost;
-            } else {
-                player.is_casting = false;
-            }
-        }
-    }
-
-    if (!player.is_casting) {
-        player.mana += player.mana_regen * dt;
-        player.mana = Clamp(player.mana, 0.0f, player.max_mana);
-
-        if (player.active_spell != NO_SPELL && 
-            player.mana >= SPELLS[player.active_spell].initial_cost &&
-            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
-            player.is_casting = true;
-            player.mana -= SPELLS[player.active_spell].initial_cost;
-        }
-    }
-
-    // Apprentice
-
-    apprentice.mana += apprentice.mana_regen * dt;
-    apprentice.mana = Clamp(apprentice.mana, 0.0f, apprentice.max_mana);
-
-    if (IsKeyPressed(KEY_E)) {
-        apprentice.following_player = !apprentice.following_player;
-    }
-
-    Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
-    if (apprentice.following_player) {
-        Vec2 appr_to_player_vel  = Vector2Normalize(appr_to_player_diff);
-        F32  appr_to_player_dist = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(apprentice.pos));
-
-        if (appr_to_player_dist > TILE_SIZE*1.5f) {
-            apprentice.pos = Vector2Add(apprentice.pos, Vector2Scale(appr_to_player_vel, apprentice.speed*dt));
-        }
-    }
-
-    if (appr_to_player_diff.x < 0) {
-        apprentice.flip_texture = FLIP_X;
-    } else {
-        apprentice.flip_texture = NO_FLIP;
-    }
-
-    // ENEMIES
-    // TODO: shoot projectile in the direction of enemy.
-
-    for (int i = 0; i < arrlen(enemies); i++) {
-        Enemy* enemy = &enemies[i];
-        Vec2 separation = {0, 0};
-        int  neighbours = 0;
-
-        // calculate separation force
-        for (int j = 0; j < arrlen(enemies); j++) {
-            if (i==j) continue;
-
-            F32 distance = Vector2Distance(enemies[i].pos, enemies[j].pos);
-
-            if (distance < TILE_SIZE) {
-                Vec2 diff = Vector2Normalize(Vector2Subtract(enemies[i].pos, enemies[j].pos));
-                separation = Vector2Add(separation, Vector2Scale(diff, TILE_SIZE/1.5/distance));
-                neighbours++;
-            }
-        }
-
-        // average and limit separation force
-        if (neighbours > 0) {
-            separation = Vector2Scale(separation, 1.0f/neighbours);
-            F32 min_force = enemies[i].speed * 0.0005f;
-            F32 max_force = enemies[i].speed * 0.5f;
-
-            separation = Vector2ClampValue(separation, min_force, max_force);
-        }
-
-        Vec2 enemy_to_player_dist_vec = Vector2Subtract(player.pos, enemy->pos);
-        Vec2 enemy_to_player_vel      = Vector2Add(Vector2Normalize(enemy_to_player_dist_vec), separation);
-        F32  enemy_to_player_dist     = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy->pos));
-        // TODO: add enemy struct field for distance to player comparison
-        if (enemy_to_player_dist > TILE_SIZE) {
-            enemy->pos = Vector2Add(enemy->pos, Vector2Scale(enemy_to_player_vel, enemy->speed*dt));
-        }
-
-        if (enemy_to_player_dist_vec.x < 0) {
-            enemy->flip_texture = FLIP_X;
-        } else {
-            enemy->flip_texture = NO_FLIP;
-        }
-
-        Rect player_rect     = (Rect){player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
-        Rect apprentice_rect = (Rect){apprentice.pos.x, apprentice.pos.y, TILE_SIZE, TILE_SIZE};
-        Rect enemy_rect      = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
-
-        if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
-            player.health -= ENEMY_DAMAGE;
-            player.is_invincible = true;
-            player.invincibility_timer = 0.2f;
-        }
-
-        if (!apprentice.is_invincible && CheckCollisionRecs(apprentice_rect, enemy_rect)) {
-            apprentice.health -= ENEMY_DAMAGE;
-            apprentice.is_invincible = true;
-            apprentice.invincibility_timer = 0.5f;
-        }
-
-        enemy->health = Clamp(enemy->health, 0.0f, enemy->max_health);
-        if (!enemy->alive) arrdel(enemies, i); 
-
-        if (enemy->health == 0.0f) {
-            enemy->alive = false;
-        }
-
-        if (player.active_spell == DEATH_RAY && player.is_casting) {
-            if (CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
-                enemy->health -= DEATH_RAY_DAMAGE;
-            }
-        }
-
-        // Burn mana if enemies touch mana ray
-        if (player.active_spell == MANA_RAY && player.is_casting) {
-            if (CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
-                player.mana -= ENEMY_MANA_BURN;
-            }
-        }
-
-    }
+    if (!gameplay_paused) update_gameplay();
 
     // Draw
     //----------------------------------------------------------------------------------
@@ -555,6 +323,257 @@ void UpdateDrawFrame(void)
     //----------------------------------------------------------------------------------
 }
 
+void update_gameplay(void) {
+        F32 dt = GetFrameTime();
+    frames_counter++;
+
+    if (IsKeyPressed(KEY_TAB)) {
+        const char* text = should_draw_debug_ui ? "Hiding atlas" : "Showing atlas";
+        TraceLog(LOG_INFO, text);
+        should_draw_debug_ui = !should_draw_debug_ui;
+    }
+
+    // PLAYER
+
+    Vec2 input = {0};
+
+    if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) {
+        input.y += 1;
+    }
+    if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) {
+        input.y -= 1;
+    }
+    if (IsKeyDown(KEY_A) || IsKeyDown(KEY_LEFT)) {
+        input.x -= 1;
+        player.flip_texture = FLIP_X;
+    }
+    if (IsKeyDown(KEY_D) || IsKeyDown(KEY_RIGHT)) {
+        input.x += 1;
+        player.flip_texture = NO_FLIP;
+    }
+
+    // Touch controls
+
+    if (GetGestureDetected() == GESTURE_TAP) {
+        touch_active = true;
+        touch_start = GetTouchPosition(0);
+    }
+
+    if (touch_active && GetTouchPointCount() > 0) {
+        Vec2 current_touch = GetTouchPosition(0);
+        Vec2 direction = Vector2Subtract(current_touch, touch_start);
+        
+        float min_distance = 10.0f;
+        if (Vector2Length(direction) > min_distance) {
+            input = Vector2Normalize(direction);
+            
+            if (input.x < 0) {
+                player.flip_texture = FLIP_X;
+            } else if (input.x > 0) {
+                player.flip_texture = NO_FLIP;
+            }
+        }
+    }
+
+    if (GetTouchPointCount() == 0) {
+        touch_active = false;
+    }
+
+    input = Vector2Normalize(input);
+
+    player.pos = Vector2Add(player.pos, Vector2Scale(input, player.speed*dt));
+    player.pos = Vector2Clamp(player.pos, (Vec2){0, 0}, (Vec2){map_width, map_height});
+
+    camera.target = player.pos;
+
+    player.health = Clamp(player.health, 0.0f, player.max_health);
+    player.invincibility_timer -= dt;
+    if (player.invincibility_timer <= 0) player.is_invincible = false;
+
+    apprentice.health = Clamp(apprentice.health, 0.0f, apprentice.max_health);
+    apprentice.invincibility_timer -= dt;
+    if (apprentice.invincibility_timer <= 0) apprentice.is_invincible = false;
+    
+    player.ray_anchor     = Vector2Add(SPRITE_CENTER(player.pos), (Vec2){0, 24});
+    apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
+    F32 spellray_distance = Vector2Distance(player.ray_anchor, apprentice.ray_anchor);
+
+    if (IsKeyPressed(KEY_Q)) {
+        player.active_spell = NO_SPELL; 
+
+        // Try casting if enough mana
+        if (player.active_spell != NO_SPELL &&
+            player.mana >= SPELLS[player.active_spell].initial_cost &&
+            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
+            player.is_casting = true;
+            player.mana -= SPELLS[player.active_spell].initial_cost;
+        } else {
+            player.is_casting = false;
+        }
+    }
+
+    if (IsKeyPressed(KEY_ONE)) {
+        player.active_spell = MANA_RAY;
+    }
+    if (IsKeyPressed(KEY_TWO)) {
+        player.active_spell = DEATH_RAY;
+    }
+
+    if (player.active_spell != NO_SPELL) {
+        // Initial cast
+        if (!player.is_casting && 
+            player.mana >= SPELLS[player.active_spell].initial_cost &&
+            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
+            player.is_casting = true;
+            player.mana -= SPELLS[player.active_spell].initial_cost;
+        }
+
+        // Continue cast
+        if (player.is_casting) {
+            if (spellray_distance >= SPELLS[player.active_spell].activation_distance) {
+                player.is_casting = false;
+            }
+
+            F32 mana_cost = SPELLS[player.active_spell].cost_per_second * dt;
+
+            if (player.mana >= mana_cost) {
+                player.mana -= mana_cost;
+            } else {
+                player.is_casting = false;
+            }
+        }
+    }
+
+    if (!player.is_casting) {
+        player.mana += player.mana_regen * dt;
+        player.mana = Clamp(player.mana, 0.0f, player.max_mana);
+
+        if (player.active_spell != NO_SPELL && 
+            player.mana >= SPELLS[player.active_spell].initial_cost &&
+            spellray_distance <= SPELLS[player.active_spell].activation_distance) {
+            player.is_casting = true;
+            player.mana -= SPELLS[player.active_spell].initial_cost;
+        }
+    }
+
+    // Apprentice
+
+    if (player.is_casting && player.active_spell == MANA_RAY) {
+        apprentice.mana += MANA_RAY_MANA_PER_SECOND * dt;
+    }
+    if (player.is_casting && player.active_spell == DEATH_RAY) {
+        apprentice.mana -= SPELLS[DEATH_RAY].cost_per_second * dt;
+    }
+    if (apprentice.mana <= 0.0f) {
+        player.is_casting = false;
+    }
+
+    apprentice.mana += apprentice.mana_regen * dt;
+    apprentice.mana = Clamp(apprentice.mana, 0.0f, apprentice.max_mana);
+
+    if (IsKeyPressed(KEY_E)) {
+        apprentice.following_player = !apprentice.following_player;
+    }
+
+    Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
+    if (apprentice.following_player) {
+        Vec2 appr_to_player_vel  = Vector2Normalize(appr_to_player_diff);
+        F32  appr_to_player_dist = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(apprentice.pos));
+
+        if (appr_to_player_dist > TILE_SIZE*1.5f) {
+            apprentice.pos = Vector2Add(apprentice.pos, Vector2Scale(appr_to_player_vel, apprentice.speed*dt));
+        }
+    }
+
+    if (appr_to_player_diff.x < 0) {
+        apprentice.flip_texture = FLIP_X;
+    } else {
+        apprentice.flip_texture = NO_FLIP;
+    }
+
+    // ENEMIES
+    // TODO: shoot projectile in the direction of enemy.
+
+    for (int i = 0; i < arrlen(enemies); i++) {
+        Enemy* enemy = &enemies[i];
+        Vec2 separation = {0, 0};
+        int  neighbours = 0;
+
+        // calculate separation force
+        for (int j = 0; j < arrlen(enemies); j++) {
+            if (i==j) continue;
+
+            F32 distance = Vector2Distance(enemies[i].pos, enemies[j].pos);
+
+            if (distance < TILE_SIZE) {
+                Vec2 diff = Vector2Normalize(Vector2Subtract(enemies[i].pos, enemies[j].pos));
+                separation = Vector2Add(separation, Vector2Scale(diff, TILE_SIZE/1.5/distance));
+                neighbours++;
+            }
+        }
+
+        // average and limit separation force
+        if (neighbours > 0) {
+            separation = Vector2Scale(separation, 1.0f/neighbours);
+            F32 min_force = enemies[i].speed * 0.0005f;
+            F32 max_force = enemies[i].speed * 0.5f;
+
+            separation = Vector2ClampValue(separation, min_force, max_force);
+        }
+
+        Vec2 enemy_to_player_dist_vec = Vector2Subtract(player.pos, enemy->pos);
+        Vec2 enemy_to_player_vel      = Vector2Add(Vector2Normalize(enemy_to_player_dist_vec), separation);
+        F32  enemy_to_player_dist     = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(enemy->pos));
+        // TODO: add enemy struct field for distance to player comparison
+        if (enemy_to_player_dist > TILE_SIZE) {
+            enemy->pos = Vector2Add(enemy->pos, Vector2Scale(enemy_to_player_vel, enemy->speed*dt));
+        }
+
+        if (enemy_to_player_dist_vec.x < 0) {
+            enemy->flip_texture = FLIP_X;
+        } else {
+            enemy->flip_texture = NO_FLIP;
+        }
+
+        Rect player_rect     = (Rect){player.pos.x, player.pos.y, TILE_SIZE, TILE_SIZE};
+        Rect apprentice_rect = (Rect){apprentice.pos.x, apprentice.pos.y, TILE_SIZE, TILE_SIZE};
+        Rect enemy_rect      = (Rect){enemy->pos.x, enemy->pos.y, TILE_SIZE, TILE_SIZE};
+
+        if (!player.is_invincible && CheckCollisionRecs(player_rect, enemy_rect)) {
+            player.health -= ENEMY_DAMAGE;
+            player.is_invincible = true;
+            player.invincibility_timer = 0.2f;
+        }
+
+        if (!apprentice.is_invincible && CheckCollisionRecs(apprentice_rect, enemy_rect)) {
+            apprentice.health -= ENEMY_DAMAGE;
+            apprentice.is_invincible = true;
+            apprentice.invincibility_timer = 0.5f;
+        }
+
+        enemy->health = Clamp(enemy->health, 0.0f, enemy->max_health);
+        if (!enemy->alive) arrdel(enemies, i); 
+
+        if (enemy->health == 0.0f) {
+            enemy->alive = false;
+        }
+
+        if (player.active_spell == DEATH_RAY && player.is_casting) {
+            if (CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
+                enemy->health -= DEATH_RAY_DAMAGE;
+            }
+        }
+
+        // Burn mana if enemies touch mana ray
+        if (player.active_spell == MANA_RAY && player.is_casting) {
+            if (CheckCollisionPointLine(SPRITE_CENTER(enemy->pos), player.ray_anchor, apprentice.ray_anchor, 16*3)) {
+                player.mana -= ENEMY_MANA_BURN;
+            }
+        }
+
+    }
+}
+
 void draw_ui(void) {
     Rect follow_icon = get_atlas(3,9);
     if (apprentice.following_player) {
@@ -614,6 +633,14 @@ void draw_ui(void) {
     DrawRectangleLinesEx(apprentice_health_rect, 2, PAL5);
     DrawRectangleRec(apprentice_mana_rect, PAL0);
     DrawRectangleLinesEx(apprentice_mana_rect, 2, PAL5);
+
+
+    if (gameplay_paused) {
+        F32 fontsize = 40;
+        const char* text = "GAME PAUSED";
+        DrawRectangle(screenWidth/2 - MeasureText(text, fontsize)/2, screenHeight/2 - fontsize/2, MeasureText(text,fontsize), fontsize, PAL1);
+        DrawText(text, screenWidth/2 - MeasureText(text, fontsize)/2, screenHeight/2 - fontsize/2, fontsize, PAL5);
+    }
 
 }
 

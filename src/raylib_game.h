@@ -138,12 +138,14 @@ const Spell SPELLS[] = {
 #define MAX_ENEMIES 512
 
 #define DEATH_RAY_DAMAGE 0.5f
+#define MANA_RAY_MANA_PER_SECOND 2.0f
 #define ENEMY_DAMAGE 1.0f
 #define ENEMY_MANA_BURN 0.1f
 //----------------------------------------------------------------------------------
 // Module Functions Declaration
 //----------------------------------------------------------------------------------
 static void UpdateDrawFrame(void);      // Update and Draw one frame
+void update_gameplay(void);
 void draw_ui(void);
 void draw_debug_ui(void);
 Rect get_atlas(int row, int col);
