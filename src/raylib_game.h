@@ -77,6 +77,11 @@ typedef struct Apprentice {
     bool is_invincible;
     F32  invincibility_timer;
 
+    F32        mana;
+    F32        max_mana;
+    F32        mana_regen;
+
+
     bool following_player;
 
     Vec2 ray_anchor;

@@ -57,7 +57,7 @@ static RenderTexture2D target = { 0 };  // Render texture to render our game
 
 int frames_counter = 0;
 static Texture atlas;
-bool should_draw_debug_ui = true;
+bool should_draw_debug_ui = false;
 
 Player player = {0};
 Apprentice apprentice = {0};
@@ -110,13 +110,16 @@ int main(void)
     apprentice = (Apprentice) {
         .pos = (Vec2){map_width/2.0f - TILE_SIZE/2 - 30, map_height/2.0f - TILE_SIZE/2 - 30},
         .speed = TILE_SIZE*2.8f,
-        .following_player = false,
+        .following_player = true,
 
         .health = 100.0f,
         .max_health = 100.0f,
         .is_invincible = false,
         .invincibility_timer = 5.0f, 
 
+        .mana = 100.0f,
+        .max_mana = 100.0f,
+        .mana_regen = 1.0f,
     };
 
     int number_of_enemies = 10;
@@ -259,8 +262,8 @@ void UpdateDrawFrame(void)
     apprentice.ray_anchor = Vector2Add(SPRITE_CENTER(apprentice.pos), (Vec2){0, 24});
     F32 spellray_distance = Vector2Distance(player.ray_anchor, apprentice.ray_anchor);
 
-    if (IsKeyPressed(KEY_E)) {
-        player.active_spell = (player.active_spell + 1) % SPELL_KIND_COUNT;
+    if (IsKeyPressed(KEY_Q)) {
+        player.active_spell = NO_SPELL; 
 
         // Try casting if enough mana
         if (player.active_spell != NO_SPELL &&
@@ -272,6 +275,14 @@ void UpdateDrawFrame(void)
             player.is_casting = false;
         }
     }
+
+    if (IsKeyPressed(KEY_ONE)) {
+        player.active_spell = MANA_RAY;
+    }
+    if (IsKeyPressed(KEY_TWO)) {
+        player.active_spell = DEATH_RAY;
+    }
+
 
     if (player.active_spell != NO_SPELL) {
         // Initial cast
@@ -310,6 +321,30 @@ void UpdateDrawFrame(void)
         }
     }
 
+    // Apprentice
+
+    apprentice.mana += apprentice.mana_regen * dt;
+    apprentice.mana = Clamp(apprentice.mana, 0.0f, apprentice.max_mana);
+
+    if (IsKeyPressed(KEY_E)) {
+        apprentice.following_player = !apprentice.following_player;
+    }
+
+    Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
+    if (apprentice.following_player) {
+        Vec2 appr_to_player_vel  = Vector2Normalize(appr_to_player_diff);
+        F32  appr_to_player_dist = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(apprentice.pos));
+
+        if (appr_to_player_dist > TILE_SIZE*1.5f) {
+            apprentice.pos = Vector2Add(apprentice.pos, Vector2Scale(appr_to_player_vel, apprentice.speed*dt));
+        }
+    }
+
+    if (appr_to_player_diff.x < 0) {
+        apprentice.flip_texture = FLIP_X;
+    } else {
+        apprentice.flip_texture = NO_FLIP;
+    }
 
     // ENEMIES
     // TODO: shoot projectile in the direction of enemy.
@@ -393,28 +428,6 @@ void UpdateDrawFrame(void)
 
     }
 
-    // Apprentice
-
-    if (IsKeyPressed(KEY_Q)) {
-        apprentice.following_player = !apprentice.following_player;
-    }
-
-    Vec2 appr_to_player_diff = Vector2Subtract(player.pos, apprentice.pos);
-    if (apprentice.following_player) {
-        Vec2 appr_to_player_vel  = Vector2Normalize(appr_to_player_diff);
-        F32  appr_to_player_dist = Vector2Distance(SPRITE_CENTER(player.pos), SPRITE_CENTER(apprentice.pos));
-
-        if (appr_to_player_dist > TILE_SIZE*1.5f) {
-            apprentice.pos = Vector2Add(apprentice.pos, Vector2Scale(appr_to_player_vel, apprentice.speed*dt));
-        }
-    }
-
-    if (appr_to_player_diff.x < 0) {
-        apprentice.flip_texture = FLIP_X;
-    } else {
-        apprentice.flip_texture = NO_FLIP;
-    }
-
     // Draw
     //----------------------------------------------------------------------------------
     // Render game screen to a texture,
@@ -485,21 +498,27 @@ void UpdateDrawFrame(void)
 
         Rect player_health_rect = (Rect) {
             player.pos.x, 
-            player.pos.y + TILE_SIZE + 10, 
+            player.pos.y + TILE_SIZE + 8, 
             (player.health/100.0f)*TILE_SIZE, 
-            10.0f
+            8.0f
         };
         Rect player_mana_rect = (Rect) {
             player.pos.x, 
-            player.pos.y + TILE_SIZE + 25, 
+            player.pos.y + TILE_SIZE + 16, 
             (player.mana/100.0f)*TILE_SIZE, 
-            10.0f
+            8.0f
         };
         Rect appr_health_rect = (Rect) {
             apprentice.pos.x, 
-            apprentice.pos.y + TILE_SIZE + 10, 
+            apprentice.pos.y + TILE_SIZE + 8, 
             (apprentice.health/100.0f)*TILE_SIZE, 
-            10.0f
+            8.0f
+        };
+        Rect appr_mana_rect = (Rect) {
+            apprentice.pos.x, 
+            apprentice.pos.y + TILE_SIZE + 16, 
+            (apprentice.mana/100.0f)*TILE_SIZE, 
+            8.0f
         };
         DrawRectangleRec(player_health_rect, PAL4);
         DrawRectangleLinesEx(player_health_rect, 2, PAL5);
@@ -509,6 +528,8 @@ void UpdateDrawFrame(void)
 
         DrawRectangleRec(appr_health_rect, PAL4);
         DrawRectangleLinesEx(appr_health_rect, 2, PAL5);
+        DrawRectangleRec(appr_mana_rect, PAL0);
+        DrawRectangleLinesEx(appr_mana_rect, 2, PAL5);
 
         EndMode2D();
     EndTextureMode();
@@ -554,7 +575,46 @@ void draw_ui(void) {
         break;
     }
 
+    Rect player_health_rect = (Rect) {
+        20, 
+        screenHeight - 100, 
+        (player.health/100.0f)*200.0f, 
+        20.0f
+    };
+    Rect player_mana_rect = (Rect) {
+        20, 
+        screenHeight - 82, 
+        (player.mana/100.0f)*200.0f, 
+        20.0f
+    };
+    Rect apprentice_health_rect = (Rect) {
+        20, 
+        screenHeight - 42, 
+        (apprentice.health/100.0f)*200.0f, 
+        20.0f
+    };
+    Rect apprentice_mana_rect = (Rect) {
+        20, 
+        screenHeight - 22, 
+        (apprentice.mana/100.0f)*200.0f, 
+        20.0f
+    };
+
     draw_sprite(atlas, spell_icon_rect, (Vec2){screenWidth - 80, screenHeight - 80}, NO_FLIP, WHITE);
+
+    DrawRectangle(0, screenHeight-130, TILE_SIZE*5, TILE_SIZE*3, PAL3);
+
+    DrawText("MAGE", 20, screenHeight-120, 20, PAL5);
+    DrawRectangleRec(player_health_rect, PAL4);
+    DrawRectangleLinesEx(player_health_rect, 2, PAL5);
+    DrawRectangleRec(player_mana_rect, PAL0);
+    DrawRectangleLinesEx(player_mana_rect, 2, PAL5);
+    DrawText("APPRENTICE", 20, screenHeight-60, 20, PAL5);
+    DrawRectangleRec(apprentice_health_rect, PAL4);
+    DrawRectangleLinesEx(apprentice_health_rect, 2, PAL5);
+    DrawRectangleRec(apprentice_mana_rect, PAL0);
+    DrawRectangleLinesEx(apprentice_mana_rect, 2, PAL5);
+
 }
 
 void draw_debug_ui(void) {
