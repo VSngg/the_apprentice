@@ -473,7 +473,7 @@ void update_gameplay(void) {
     }
     if (apprentice.mana <= 0.0f) {
         player.is_casting = false;
-        player.active_spell == NO_SPELL;
+        player.active_spell = NO_SPELL;
     }
 
     apprentice.mana += apprentice.mana_regen * dt;
